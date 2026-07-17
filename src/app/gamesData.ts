@@ -9,7 +9,7 @@ export interface Game {
   platforms: string[];
 }
 
-// Supabase product table shape
+// Supabase products table shape
 export interface Product {
   name: string;
   price: number;

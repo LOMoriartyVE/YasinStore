@@ -59,7 +59,7 @@ export default function Home() {
     // Load products from Supabase
     const fetchProducts = async () => {
       const { data, error } = await supabase
-        .from('product')
+        .from('products')
         .select('*');
       if (!error && data) {
         setAllGames(data.map(productToGame));

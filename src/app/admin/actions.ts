@@ -5,7 +5,7 @@ import type { Product } from '../gamesData';
 
 export async function getProducts(): Promise<{ data: Product[] | null; error: string | null }> {
   const { data, error } = await supabase
-    .from('product')
+    .from('products')
     .select('*')
     .order('name', { ascending: true });
 
@@ -17,7 +17,7 @@ export async function getProducts(): Promise<{ data: Product[] | null; error: st
 }
 
 export async function addProduct(product: Product): Promise<{ success: boolean; error: string | null }> {
-  const { error } = await supabase.from('product').insert([product]);
+  const { error } = await supabase.from('products').insert([product]);
 
   if (error) {
     return { success: false, error: error.message };
@@ -27,7 +27,7 @@ export async function addProduct(product: Product): Promise<{ success: boolean; 
 }
 
 export async function deleteProduct(name: string): Promise<{ success: boolean; error: string | null }> {
-  const { error } = await supabase.from('product').delete().eq('name', name);
+  const { error } = await supabase.from('products').delete().eq('name', name);
 
   if (error) {
     return { success: false, error: error.message };

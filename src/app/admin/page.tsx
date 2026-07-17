@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import styles from './admin.module.css';
-import { Game, staticGames } from '../gamesData';
+import { Product, DEFAULT_LOGO_POSTER } from '../gamesData';
+import { getProducts, addProduct, deleteProduct } from './actions';
 import { 
   ArrowLeft, 
   Plus, 
@@ -13,18 +14,14 @@ import {
   Database,
   Lock,
   Upload,
-  Gamepad2,
-  Monitor,
-  Smartphone,
-  Tv
+  Loader2
 } from 'lucide-react';
 
-const DEFAULT_LOGO_POSTER = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="260" viewBox="0 0 200 260" fill="none"><rect width="200" height="260" fill="%230c0c0e"/><rect x="2" y="2" width="196" height="256" rx="10" stroke="%23ff2e4d" stroke-width="2" stroke-opacity="0.4"/><path d="M50 110H70M60 100V120" stroke="%23ff2e4d" stroke-width="4" stroke-linecap="round"/><circle cx="130" cy="105" r="6" fill="%23ff2e4d"/><circle cx="145" cy="118" r="6" fill="%23ff2e4d"/><path d="M60 155C75 170 125 170 140 155" stroke="%23ff2e4d" stroke-width="4" stroke-linecap="round"/><text x="100" y="220" fill="%23ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="900" letter-spacing="1" text-anchor="middle">YASIN STORE</text></svg>`;
-
 export default function AdminPage() {
-  const [games, setGames] = useState<Game[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [toastMessage, setToastMessage] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Password Lock state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -32,24 +29,11 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState(false);
 
   // Form States
-  const [title, setTitle] = useState('');
-  const [genre, setGenre] = useState('Uncategorized');
-  const [genresList, setGenresList] = useState<string[]>([
-    'Uncategorized',
-    'Dark Fantasy RPG', 
-    'Racing Simulation', 
-    'Sci-Fi Exploration', 
-    'Tactical Stealth',
-    'Action Adventure',
-    'First-Person Shooter'
-  ]);
-  const [newGenreInput, setNewGenreInput] = useState('');
+  const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [posterFile, setPosterFile] = useState<string | null>(null);
   const [posterFileName, setPosterFileName] = useState('');
-  const [released, setReleased] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['PC']);
 
   // Admin Contact Details state
   const [whatsapp, setWhatsapp] = useState('+964 770 000 0000');
@@ -59,26 +43,14 @@ export default function AdminPage() {
   const [asiacell, setAsiacell] = useState('0770 000 0000');
   const [qiCard, setQiCard] = useState('Available upon request');
 
-  // Load games, theme, and authentication
+  // Load products from Supabase, theme, and authentication
   useEffect(() => {
     const savedTheme = localStorage.getItem('yasin-store-theme') as 'light' | 'dark' | null;
     const initialTheme = savedTheme || 'dark';
     setTheme(initialTheme);
     document.documentElement.setAttribute('data-theme', initialTheme);
 
-    const savedGames = localStorage.getItem('yasin-store-games');
-    if (savedGames) {
-      try {
-        setGames(JSON.parse(savedGames));
-      } catch (e) {
-        setGames(staticGames);
-      }
-    } else {
-      setGames(staticGames);
-      localStorage.setItem('yasin-store-games', JSON.stringify(staticGames));
-    }
-
-    // Load contact info
+    // Load contact info from localStorage (contact info stays local since it's admin-only config)
     const savedContact = localStorage.getItem('yasin-store-contact-info');
     if (savedContact) {
       try {
@@ -94,22 +66,26 @@ export default function AdminPage() {
       }
     }
 
-    // Load genres list
-    const savedGenres = localStorage.getItem('yasin-store-genres');
-    if (savedGenres) {
-      try {
-        setGenresList(JSON.parse(savedGenres));
-      } catch (e) {
-        console.error('Failed to parse genres list', e);
-      }
-    }
-
     // Check if authenticated in session
     const isAuthed = sessionStorage.getItem('yasin-store-admin-authed');
     if (isAuthed === 'true') {
       setIsAuthenticated(true);
     }
+
+    // Fetch products from Supabase
+    fetchProducts();
   }, []);
+
+  const fetchProducts = async () => {
+    const { data, error } = await getProducts();
+
+    if (error) {
+      console.error('Error fetching products:', error);
+      showToast('Failed to load products from database.');
+    } else {
+      setProducts(data || []);
+    }
+  };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,120 +121,61 @@ export default function AdminPage() {
     reader.readAsDataURL(file);
   };
 
-  const togglePlatform = (platform: string) => {
-    if (selectedPlatforms.includes(platform)) {
-      if (selectedPlatforms.length > 1) {
-        setSelectedPlatforms(selectedPlatforms.filter(p => p !== platform));
-      }
-    } else {
-      setSelectedPlatforms([...selectedPlatforms, platform]);
-    }
-  };
-
-  const handleAddGenre = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const trimmed = newGenreInput.trim();
-    if (trimmed) {
-      let updated = genresList;
-      if (!genresList.includes(trimmed)) {
-        updated = [...genresList, trimmed];
-        setGenresList(updated);
-        localStorage.setItem('yasin-store-genres', JSON.stringify(updated));
-      }
-      setGenre(trimmed);
-      setNewGenreInput('');
-      showToast(`Genre "${trimmed}" added and selected.`);
-    }
-  };
-
-  const handleRemoveGenre = (e: React.MouseEvent, genreToRemove: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (genreToRemove === 'Uncategorized') {
-      alert('Cannot delete the fallback genre.');
-      return;
-    }
-
-    if (!confirm(`Are you sure you want to remove the genre "${genreToRemove}"? Any products currently assigned this genre will be converted to "Uncategorized".`)) {
-      return;
-    }
-
-    const updatedGenres = genresList.filter(g => g !== genreToRemove);
-    setGenresList(updatedGenres);
-    localStorage.setItem('yasin-store-genres', JSON.stringify(updatedGenres));
-
-    if (genre === genreToRemove) {
-      setGenre('Uncategorized');
-    }
-
-    // Update games list
-    const updatedGames = games.map(game => {
-      if (game.genre === genreToRemove) {
-        return { ...game, genre: 'Uncategorized' };
-      }
-      return game;
-    });
-    setGames(updatedGames);
-    localStorage.setItem('yasin-store-games', JSON.stringify(updatedGames));
-
-    showToast(`Genre "${genreToRemove}" removed, and affected products updated.`);
-  };
-
-  const handleAddGame = (e: React.FormEvent) => {
+  const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title || !price || !released || selectedPlatforms.length === 0) {
-      alert('Please fill in all required fields.');
+    if (!name || !price) {
+      alert('Please fill in name and price.');
       return;
     }
 
-    // Create unique slug ID
-    const newId = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    setIsSubmitting(true);
 
-    if (games.some(g => g.id === newId)) {
-      alert('A game with this title already exists in the catalog.');
-      return;
-    }
-
-    const finalPoster = posterFile || DEFAULT_LOGO_POSTER;
-
-    const newGame: Game = {
-      id: newId,
-      title,
-      genre,
-      description: description || 'No description provided.',
+    const newProduct: Product = {
+      name,
       price: parseFloat(parseFloat(price).toFixed(2)),
-      poster: finalPoster,
-      released,
-      platforms: selectedPlatforms
+      description: description || null,
+      image_url: posterFile || null
     };
 
-    const updatedGames = [newGame, ...games];
-    setGames(updatedGames);
-    localStorage.setItem('yasin-store-games', JSON.stringify(updatedGames));
+    const { success, error } = await addProduct(newProduct);
+
+    if (!success) {
+      console.error('Error adding product:', error);
+      showToast(`Failed to add "${name}": ${error}`);
+      setIsSubmitting(false);
+      return;
+    }
 
     // Reset Form
-    setTitle('');
+    setName('');
     setDescription('');
     setPrice('');
     setPosterFile(null);
     setPosterFileName('');
-    setSelectedPlatforms(['PC']);
-    setReleased(new Date().toISOString().split('T')[0]);
 
-    showToast(`"${title}" added successfully!`);
+    showToast(`"${name}" added to database!`);
+    setIsSubmitting(false);
+
+    // Refresh product list
+    fetchProducts();
   };
 
-  const handleDeleteGame = (id: string, gameTitle: string) => {
-    if (!confirm(`Are you sure you want to remove "${gameTitle}" from the store catalog?`)) {
+  const handleDeleteProduct = async (productName: string) => {
+    if (!confirm(`Are you sure you want to remove "${productName}" from the store catalog?`)) {
       return;
     }
 
-    const updatedGames = games.filter(g => g.id !== id);
-    setGames(updatedGames);
-    localStorage.setItem('yasin-store-games', JSON.stringify(updatedGames));
-    showToast(`"${gameTitle}" removed.`);
+    const { success, error } = await deleteProduct(productName);
+
+    if (!success) {
+      console.error('Error deleting product:', error);
+      showToast(`Failed to delete "${productName}": ${error}`);
+      return;
+    }
+
+    showToast(`"${productName}" removed from database.`);
+    fetchProducts();
   };
 
   const handleSaveContactInfo = (e: React.FormEvent) => {
@@ -274,13 +191,6 @@ export default function AdminPage() {
     localStorage.setItem('yasin-store-contact-info', JSON.stringify(contactData));
     showToast('Contact & Payment details updated!');
   };
-
-  const platformsList = [
-    { name: 'PC', icon: <Monitor size={14} /> },
-    { name: 'PS5', icon: <Tv size={14} /> },
-    { name: 'Xbox Series X', icon: <Gamepad2 size={14} /> },
-    { name: 'Switch', icon: <Smartphone size={14} /> }
-  ];
 
   if (!isAuthenticated) {
     return (
@@ -337,94 +247,25 @@ export default function AdminPage() {
         {/* Left Side: Add Product Form */}
         <section className={styles.panelCard}>
           <h2 className={styles.panelTitle}>
-            <Plus size={20} className={styles.titleRed} /> Add New Game
+            <Plus size={20} className={styles.titleRed} /> Add New Product
           </h2>
-          <form className={styles.form} onSubmit={handleAddGame}>
+          <form className={styles.form} onSubmit={handleAddProduct}>
             <div className={styles.formGroup}>
-              <label className={styles.label}>Game Title *</label>
+              <label className={styles.label}>Product Name *</label>
               <input 
                 type="text" 
                 placeholder="e.g. Grand Theft Auto VI" 
                 className={styles.input}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 required
               />
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Genre *</label>
-              <div className={styles.platformsGrid} style={{ marginBottom: '8px' }}>
-                {genresList.map((g) => {
-                  const isActive = genre === g;
-                  return (
-                    <div 
-                      key={g} 
-                      style={{ 
-                        position: 'relative', 
-                        display: 'inline-flex', 
-                        alignItems: 'center' 
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className={`${styles.platformBtn} ${isActive ? styles.platformBtnActive : ''}`}
-                        onClick={() => setGenre(g)}
-                        style={{ paddingRight: g !== 'Uncategorized' ? '30px' : undefined }}
-                      >
-                        {g}
-                      </button>
-                      {g !== 'Uncategorized' && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleRemoveGenre(e, g)}
-                          style={{
-                            position: 'absolute',
-                            right: '8px',
-                            background: 'none',
-                            border: 'none',
-                            color: isActive ? '#ffffff' : 'var(--color-red)',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            fontWeight: 'bold',
-                            opacity: 0.7,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 2
-                          }}
-                          title={`Remove genre ${g}`}
-                        >
-                          &times;
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input 
-                  type="text" 
-                  placeholder="Or type a custom genre..." 
-                  className={styles.input}
-                  value={newGenreInput}
-                  onChange={(e) => setNewGenreInput(e.target.value)}
-                />
-                <button 
-                  type="button" 
-                  className={styles.backBtn}
-                  style={{ whiteSpace: 'nowrap', padding: '0 16px' }}
-                  onClick={handleAddGenre}
-                >
-                  Add Genre
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.formGroup}>
               <label className={styles.label}>Description</label>
               <textarea 
-                placeholder="Write a game synopsis (optional)..." 
+                placeholder="Write a product synopsis (optional)..." 
                 className={styles.textarea}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -491,38 +332,12 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Release Date *</label>
-              <input 
-                type="date" 
-                className={styles.input}
-                value={released}
-                onChange={(e) => setReleased(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Platforms *</label>
-              <div className={styles.platformsGrid}>
-                {platformsList.map((platform) => {
-                  const isActive = selectedPlatforms.includes(platform.name);
-                  return (
-                    <button
-                      type="button"
-                      key={platform.name}
-                      className={`${styles.platformBtn} ${isActive ? styles.platformBtnActive : ''}`}
-                      onClick={() => togglePlatform(platform.name)}
-                    >
-                      {platform.icon} {platform.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <button type="submit" className={styles.submitBtn}>
-              <Plus size={18} /> Add Game to Catalog
+            <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <><Loader2 size={18} className="spin-animation" /> Saving to Database...</>
+              ) : (
+                <><Plus size={18} /> Add Product to Database</>
+              )}
             </button>
           </form>
         </section>
@@ -602,36 +417,35 @@ export default function AdminPage() {
         {/* Right Side: Current Catalog List */}
         <section className={styles.panelCard}>
           <h2 className={styles.panelTitle}>
-            <Database size={20} className={styles.titleRed} /> Current Catalog ({games.length})
+            <Database size={20} className={styles.titleRed} /> Current Catalog ({products.length})
           </h2>
           <div className={styles.catalogList}>
-            {games.length === 0 ? (
+            {products.length === 0 ? (
               <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px 0' }}>
-                Catalog is empty. Add games using the form.
+                Catalog is empty. Add products using the form.
               </p>
             ) : (
-              games.map((game) => (
-                <div key={game.id} className={styles.catalogItem}>
+              products.map((product) => (
+                <div key={product.name} className={styles.catalogItem}>
                   <div className={styles.itemImgWrapper}>
                     <Image 
-                      src={game.poster} 
-                      alt={game.title} 
+                      src={product.image_url || DEFAULT_LOGO_POSTER} 
+                      alt={product.name} 
                       fill 
                       sizes="50px"
                       style={{ objectFit: 'cover' }}
                     />
                   </div>
                   <div className={styles.itemInfo}>
-                    <h3 className={styles.itemTitle}>{game.title}</h3>
+                    <h3 className={styles.itemTitle}>{product.name}</h3>
                     <div className={styles.itemMeta}>
-                      <span className={styles.itemGenre}>{game.genre}</span>
-                      <span className={styles.itemPrice}>{game.price.toLocaleString()} IQD</span>
+                      <span className={styles.itemPrice}>{product.price.toLocaleString()} IQD</span>
                     </div>
                   </div>
                   <button 
                     className={styles.deleteBtn}
-                    onClick={() => handleDeleteGame(game.id, game.title)}
-                    title="Remove Game"
+                    onClick={() => handleDeleteProduct(product.name)}
+                    title="Remove Product"
                   >
                     <Trash2 size={16} />
                   </button>

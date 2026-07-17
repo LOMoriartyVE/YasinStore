@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import styles from './store.module.css';
 import { 
   Gamepad2, 
@@ -10,17 +9,16 @@ import {
   Sun, 
   Moon, 
   Search, 
-  Star, 
   X, 
   Plus, 
   Trash2, 
   CheckCircle2, 
   ArrowRight,
-  TrendingUp,
-  Copy,
-  Check
+  Loader2
 } from 'lucide-react';
-import { Game, staticGames } from './gamesData';
+import { Game, productToGame, DEFAULT_LOGO_POSTER } from './gamesData';
+import { supabase } from '../lib/supabase';
+import { submitCheckout } from './actions/checkout';
 
 export default function Home() {
   const [allGames, setAllGames] = useState<Game[]>([]);
@@ -32,12 +30,16 @@ export default function Home() {
   const [cartOpen, setCartOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-  const [checkoutSuccess, setCheckoutSuccess] = useState(false);
+
+  // Tab State
+  const [activeTab, setActiveTab] = useState<'home' | 'library' | 'about' | 'support'>('home');
+  const [libraryGames, setLibraryGames] = useState<Game[]>([]);
 
   // Manual payment & contact states
   const [showPayment, setShowPayment] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [activeRequestId, setActiveRequestId] = useState('');
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutToast, setCheckoutToast] = useState<{ message: string; type: 'success' | 'error' | 'loading' } | null>(null);
   const [contactInfo, setContactInfo] = useState({
     whatsapp: '+964 770 000 0000',
     instagram: 'yasin.store',
@@ -47,25 +49,24 @@ export default function Home() {
     qiCard: 'Available upon request'
   });
 
-  // Load theme and games from localStorage on mount
+  // Load theme, products from Supabase, cart and contacts on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('yasin-store-theme') as 'light' | 'dark' | null;
     const initialTheme = savedTheme || 'dark';
     setTheme(initialTheme);
     document.documentElement.setAttribute('data-theme', initialTheme);
 
-    // Load games from localStorage
-    const savedGames = localStorage.getItem('yasin-store-games');
-    if (savedGames) {
-      try {
-        setAllGames(JSON.parse(savedGames));
-      } catch (e) {
-        setAllGames(staticGames);
+    // Load products from Supabase
+    const fetchProducts = async () => {
+      const { data, error } = await supabase
+        .from('product')
+        .select('*');
+      if (!error && data) {
+        setAllGames(data.map(productToGame));
       }
-    } else {
-      setAllGames(staticGames);
-      localStorage.setItem('yasin-store-games', JSON.stringify(staticGames));
-    }
+      setLoading(false);
+    };
+    fetchProducts();
 
     // Load cart from localStorage
     const savedCart = localStorage.getItem('yasin-store-cart');
@@ -108,7 +109,50 @@ export default function Home() {
 
     setGames(filtered);
     setLoading(false);
-  }, [genre, search, allGames]);
+  }, [search, genre, allGames]);
+
+  // Load library games from completed requests
+  useEffect(() => {
+    if (activeTab === 'library') {
+      const savedRequests = localStorage.getItem('yasin-store-requests');
+      if (savedRequests) {
+        try {
+          const parsedRequests = JSON.parse(savedRequests);
+          const completed = parsedRequests.filter((r: any) => r.status === 'Completed');
+          const gamesList: Game[] = [];
+          const seenIds = new Set();
+          
+          completed.forEach((req: any) => {
+            req.games.forEach((game: any) => {
+              if (!seenIds.has(game.id)) {
+                seenIds.add(game.id);
+                const fullDetails = allGames.find(g => g.id === game.id);
+                if (fullDetails) {
+                  gamesList.push(fullDetails);
+                } else {
+                  gamesList.push({
+                    id: game.id,
+                    title: game.title,
+                    genre: 'Unlocked Game',
+                    description: 'Purchased game key ready for activation.',
+                    price: game.price,
+                    released: 'N/A',
+                    poster: '/logo.png',
+                    platforms: ['PC']
+                  });
+                }
+              }
+            });
+          });
+          setLibraryGames(gamesList);
+        } catch (e) {
+          console.error('Failed to load library games', e);
+        }
+      } else {
+        setLibraryGames([]);
+      }
+    }
+  }, [activeTab, allGames]);
 
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
@@ -144,32 +188,32 @@ export default function Home() {
     }
   };
 
-  const handleCheckout = () => {
-    const reqId = 'REQ-' + Math.random().toString(36).substr(2, 6).toUpperCase();
-    setActiveRequestId(reqId);
-    
-    // Save request to localStorage so admin can see it
-    const newRequest = {
-      id: reqId,
-      games: cart.map(item => ({ id: item.id, title: item.title, price: item.price })),
-      totalPrice: cartTotal,
-      status: 'Pending',
-      createdAt: new Date().toLocaleString()
-    };
-    
-    const existing = localStorage.getItem('yasin-store-requests');
-    let requestsList = [];
-    if (existing) {
-      try {
-        requestsList = JSON.parse(existing);
-      } catch (e) {
-        console.error('Failed to parse requests', e);
-      }
+  const handleCheckout = async () => {
+    setCheckoutLoading(true);
+    setCheckoutToast({ message: 'Submitting your order to the database...', type: 'loading' });
+
+    const result = await submitCheckout(
+      cart.map((item) => ({ title: item.title, price: item.price })),
+      cartTotal
+    );
+
+    if (!result.success) {
+      console.error('Checkout failed:', result.error);
+      setCheckoutToast({
+        message: `Checkout failed: ${result.error || 'Unknown error'}. Please try again.`,
+        type: 'error',
+      });
+      setCheckoutLoading(false);
+      return;
     }
-    requestsList = [newRequest, ...requestsList];
-    localStorage.setItem('yasin-store-requests', JSON.stringify(requestsList));
-    
+
+    setActiveRequestId(result.requestId!);
     setShowPayment(true);
+    setCheckoutToast({
+      message: `Order ${result.requestId} submitted successfully! Contact admin to complete payment.`,
+      type: 'success',
+    });
+    setCheckoutLoading(false);
   };
 
   const closeCartDrawer = () => {
@@ -180,18 +224,13 @@ export default function Home() {
   const handleClearCart = () => {
     setCart([]);
     localStorage.removeItem('yasin-store-cart');
+    setCheckoutToast(null);
     closeCartDrawer();
   };
 
   const getOrderSummaryText = () => {
     const itemsText = cart.map(item => item.title).join(', ');
     return `Hello Yasin Store! My Request ID is ${activeRequestId}. Games: ${itemsText} (Total: ${cartTotal.toLocaleString()} IQD). Please confirm my order!`;
-  };
-
-  const handleCopyOrder = () => {
-    navigator.clipboard.writeText(getOrderSummaryText());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   const getWhatsAppLink = () => {
@@ -211,6 +250,34 @@ export default function Home() {
 
   const cartTotal = cart.reduce((total, item) => total + item.price, 0);
 
+  const checkoutToastStyles = checkoutToast
+    ? {
+        padding: '12px 16px',
+        borderRadius: 'var(--radius-md)',
+        backgroundColor:
+          checkoutToast.type === 'success'
+            ? 'rgba(16,185,129,0.1)'
+            : checkoutToast.type === 'error'
+              ? 'rgba(255,46,77,0.1)'
+              : 'rgba(245,158,11,0.1)',
+        border: `1px solid ${
+          checkoutToast.type === 'success'
+            ? '#10b981'
+            : checkoutToast.type === 'error'
+              ? 'var(--color-red)'
+              : '#f59e0b'
+        }`,
+        color:
+          checkoutToast.type === 'success'
+            ? '#10b981'
+            : checkoutToast.type === 'error'
+              ? 'var(--color-red)'
+              : '#f59e0b',
+        fontSize: '0.85rem',
+        fontWeight: '600',
+      }
+    : null;
+
   // Dynamically extract unique genres from the catalog database
   const genres = ['All', ...Array.from(new Set(allGames.map(g => g.genre))).filter(Boolean)];
 
@@ -229,10 +296,34 @@ export default function Home() {
           <ul className={styles.navLinks}>
             <li>
               <button 
-                className={`${styles.pill} ${genre === 'All' && !search ? styles.pillActive : ''}`}
-                onClick={() => { setGenre('All'); setSearch(''); }}
+                className={`${styles.pill} ${activeTab === 'home' ? styles.pillActive : ''}`}
+                onClick={() => { setActiveTab('home'); setGenre('All'); setSearch(''); }}
               >
                 Home
+              </button>
+            </li>
+            <li>
+              <button 
+                className={`${styles.pill} ${activeTab === 'library' ? styles.pillActive : ''}`}
+                onClick={() => setActiveTab('library')}
+              >
+                Library
+              </button>
+            </li>
+            <li>
+              <button 
+                className={`${styles.pill} ${activeTab === 'about' ? styles.pillActive : ''}`}
+                onClick={() => setActiveTab('about')}
+              >
+                About
+              </button>
+            </li>
+            <li>
+              <button 
+                className={`${styles.pill} ${activeTab === 'support' ? styles.pillActive : ''}`}
+                onClick={() => setActiveTab('support')}
+              >
+                Support
               </button>
             </li>
           </ul>
@@ -269,108 +360,306 @@ export default function Home() {
       {/* Main Content */}
       <main className="container" style={{ flexGrow: 1, paddingTop: '40px' }}>
 
-        {/* Catalog Header & Filters */}
-        <section className={styles.catalogHeader}>
-          <div className={styles.filterSection}>
-            <div className={styles.filterControls}>
-              {/* Search */}
-              <div className={styles.searchWrapper}>
-                <Search size={18} className={styles.searchIcon} />
-                <input 
-                  type="text" 
-                  placeholder="Search masterpieces..." 
-                  className={styles.searchInput}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
+        {/* Tab 1: Home Catalog */}
+        {activeTab === 'home' && (
+          <section className={styles.catalogHeader}>
+            <div className={styles.filterSection}>
+              <div className={styles.filterControls}>
+                {/* Search */}
+                <div className={styles.searchWrapper}>
+                  <Search size={18} className={styles.searchIcon} />
+                  <input 
+                    type="text" 
+                    placeholder="Search masterpieces..." 
+                    className={styles.searchInput}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
 
-              {/* Genre Pills */}
-              <div className={styles.pillsContainer}>
-                {genres.map((g) => (
-                  <button
-                    key={g}
-                    className={`${styles.pill} ${genre === g ? styles.pillActive : ''}`}
-                    onClick={() => setGenre(g)}
+                {/* Genre Pills */}
+                <div className={styles.pillsContainer}>
+                  {genres.map((g) => (
+                    <button
+                      key={g}
+                      className={`${styles.pill} ${genre === g ? styles.pillActive : ''}`}
+                      onClick={() => setGenre(g)}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, marginBottom: '24px' }}>
+              {genre === 'All' ? 'All Masterpieces' : `${genre} Games`} {search && `matching "${search}"`}
+            </h2>
+
+            {/* Loading State */}
+            {loading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0', color: 'var(--color-red)' }}>
+                <span className="red-glow-effect" style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 700 }}>
+                  LOADING DIRECTORY...
+                </span>
+              </div>
+            ) : games.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 0', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>No games match your criteria.</p>
+                <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => { setGenre('All'); setSearch(''); }}>
+                  Reset Filters
+                </button>
+              </div>
+            ) : (
+              /* Games Grid */
+              <div className={styles.gamesGrid}>
+                {games.map((game) => (
+                  <div 
+                    key={game.id} 
+                    className={styles.gameCard}
+                    onClick={() => setSelectedGame(game)}
                   >
-                    {g}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+                    <div className={styles.cardImgWrapper}>
+                      <span className={styles.cardTag}>{game.genre.split(' ')[0]}</span>
+                      <Image 
+                        src={game.poster}
+                        alt={game.title}
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className={styles.cardImg}
+                        priority={game.id === 'neon-syndicate'}
+                      />
+                      <div className={styles.cardOverlay}>
+                        <span className={styles.cardQuickView}>
+                          <Gamepad2 size={16} /> View Details
+                        </span>
+                      </div>
+                    </div>
 
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, marginBottom: '24px' }}>
-            {genre === 'All' ? 'All Masterpieces' : `${genre} Games`} {search && `matching "${search}"`}
-          </h2>
+                    <div className={styles.cardContent}>
+                      <div className={styles.cardHeaderInfo}>
+                        <span className={styles.cardMeta}>
+                          {game.platforms[0]}{game.platforms.length > 1 && ` +${game.platforms.length - 1}`}
+                        </span>
+                      </div>
 
-          {/* Loading State */}
-          {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0', color: 'var(--color-red)' }}>
-              <span className="red-glow-effect" style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 700 }}>
-                LOADING DIRECTORY...
-              </span>
-            </div>
-          ) : games.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 0', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>No games match your criteria.</p>
-              <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => { setGenre('All'); setSearch(''); }}>
-                Reset Filters
-              </button>
-            </div>
-          ) : (
-            /* Games Grid */
-            <div className={styles.gamesGrid}>
-              {games.map((game) => (
-                <div 
-                  key={game.id} 
-                  className={styles.gameCard}
-                  onClick={() => setSelectedGame(game)}
-                >
-                  <div className={styles.cardImgWrapper}>
-                    <span className={styles.cardTag}>{game.genre.split(' ')[0]}</span>
-                    <Image 
-                      src={game.poster}
-                      alt={game.title}
-                      fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      className={styles.cardImg}
-                      priority={game.id === 'neon-syndicate'}
-                    />
-                    <div className={styles.cardOverlay}>
-                      <span className={styles.cardQuickView}>
-                        <Gamepad2 size={16} /> View Details
-                      </span>
+                      <h3 className={styles.cardTitle}>{game.title}</h3>
+                      <p className={styles.cardDesc}>{game.description}</p>
+
+                      <div className={styles.cardFooter}>
+                        <span className={styles.price}>{game.price.toLocaleString()} IQD</span>
+                        <button 
+                          className={styles.cardBtn}
+                          onClick={(e) => addToCart(game, e)}
+                          title="Add to Cart"
+                          aria-label={`Add ${game.title} to cart`}
+                        >
+                          <Plus size={20} />
+                        </button>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
-                  <div className={styles.cardContent}>
-                    <div className={styles.cardHeaderInfo}>
-                      <span className={styles.cardMeta}>
-                        {game.platforms[0]}{game.platforms.length > 1 && ` +${game.platforms.length - 1}`}
-                      </span>
+        {/* Tab 2: Library */}
+        {activeTab === 'library' && (
+          <section className={styles.catalogHeader}>
+            {libraryGames.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 0', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-lg)', backgroundColor: 'var(--bg-secondary)' }}>
+                <Gamepad2 size={48} style={{ color: 'var(--color-red)', marginBottom: '16px', opacity: 0.8 }} />
+                <h2 style={{ fontFamily: 'var(--font-heading)', marginBottom: '8px' }}>Your Library is Empty</h2>
+                <p style={{ color: 'var(--text-secondary)', maxWidth: '500px', margin: '0 auto 24px', fontSize: '0.95rem' }}>
+                  Once you select games, checkout, and send your Request ID to the admin, the admin will verify your payment and mark it as completed. Verified games will unlock here automatically!
+                </p>
+                <button className={styles.btn} onClick={() => setActiveTab('home')} style={{ backgroundColor: 'var(--color-red)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 'var(--radius-md)', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Browse Catalog
+                </button>
+              </div>
+            ) : (
+              <div>
+                <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, marginBottom: '24px' }}>
+                  Your Collection ({libraryGames.length})
+                </h2>
+                <div className={styles.gamesGrid}>
+                  {libraryGames.map((game) => (
+                    <div key={game.id} className={styles.gameCard} style={{ cursor: 'default' }}>
+                      <div className={styles.cardImgWrapper}>
+                        <span className={styles.cardTag} style={{ backgroundColor: '#10b981' }}>Unlocked</span>
+                        <Image 
+                          src={game.poster}
+                          alt={game.title}
+                          fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          className={styles.cardImg}
+                        />
+                      </div>
+                      <div className={styles.cardContent}>
+                        <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#10b981', fontWeight: 'bold' }}>Ready to Download</span>
+                        <h3 className={styles.cardTitle} style={{ marginTop: '4px' }}>{game.title}</h3>
+                        <p className={styles.cardDesc}>{game.description}</p>
+                        <button 
+                          className={styles.btn} 
+                          onClick={() => alert(`Retrieving license key for "${game.title}"...\nKey status: ACTIVE\nKey: YASN-${Math.random().toString(36).substr(2, 4).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`)}
+                          style={{ 
+                            marginTop: '12px', 
+                            width: '100%', 
+                            backgroundColor: '#10b981', 
+                            color: 'white', 
+                            border: 'none', 
+                            padding: '10px 0', 
+                            borderRadius: 'var(--radius-md)', 
+                            fontWeight: 'bold', 
+                            cursor: 'pointer' 
+                          }}
+                        >
+                          Get Key
+                        </button>
+                      </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
-                    <h3 className={styles.cardTitle}>{game.title}</h3>
-                    <p className={styles.cardDesc}>{game.description}</p>
+        {/* Tab 3: About */}
+        {activeTab === 'about' && (
+          <section className={styles.catalogHeader}>
+            <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              <div style={{ textAlign: 'center', paddingBottom: '24px', borderBottom: '1px solid var(--border-color)' }}>
+                <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.5rem', fontWeight: 800, marginBottom: '12px' }}>
+                  ABOUT YASIN <span style={{ color: 'var(--color-red)' }}>STORE</span>
+                </h1>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
+                  The ultimate hub for premium gaming catalogs, built to show game collections and provide direct key deliveries.
+                </p>
+              </div>
 
-                    <div className={styles.cardFooter}>
-                      <span className={styles.price}>{game.price.toLocaleString()} IQD</span>
-                      <button 
-                        className={styles.cardBtn}
-                        onClick={(e) => addToCart(game, e)}
-                        title="Add to Cart"
-                        aria-label={`Add ${game.title} to cart`}
-                      >
-                        <Plus size={20} />
-                      </button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
+                <div style={{ padding: '24px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', color: 'var(--color-red)', marginBottom: '8px' }}>🚀 Our Mission</h3>
+                  <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                    Yasin Store offers an immersive, interactive gaming directory showing game descriptions, specs, and local price conversions in Iraqi Dinars (IQD). We connect users to game codes and digital keys through a convenient manual validation process.
+                  </p>
+                </div>
+
+                <div style={{ padding: '24px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', color: 'var(--color-red)', marginBottom: '12px' }}>🛠️ How it Works</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(255,46,77,0.1)', color: 'var(--color-red)', fontWeight: 'bold' }}>1</span>
+                      <div>
+                        <strong style={{ display: 'block', color: 'var(--text-primary)' }}>Browse and Stage</strong>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Select your favorite titles from our database and add them to the cart.</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(255,46,77,0.1)', color: 'var(--color-red)', fontWeight: 'bold' }}>2</span>
+                      <div>
+                        <strong style={{ display: 'block', color: 'var(--text-primary)' }}>Secure Checkout ID</strong>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Click Checkout to log the purchase request locally and generate your Unique Request ID.</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(255,46,77,0.1)', color: 'var(--color-red)', fontWeight: 'bold' }}>3</span>
+                      <div>
+                        <strong style={{ display: 'block', color: 'var(--text-primary)' }}>Submit to Admin</strong>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Send the request summary or code to our official handles (WhatsApp, Telegram, or Instagram).</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(255,46,77,0.1)', color: 'var(--color-red)', fontWeight: 'bold' }}>4</span>
+                      <div>
+                        <strong style={{ display: 'block', color: 'var(--text-primary)' }}>Key Unlock</strong>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Once payment is confirmed by the admin, the games unlock in your Library.</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          )}
-        </section>
+          </section>
+        )}
+
+        {/* Tab 4: Support */}
+        {activeTab === 'support' && (
+          <section className={styles.catalogHeader}>
+            <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              <div style={{ textAlign: 'center', paddingBottom: '24px', borderBottom: '1px solid var(--border-color)' }}>
+                <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.5rem', fontWeight: 800, marginBottom: '12px' }}>
+                  CUSTOMER <span style={{ color: 'var(--color-red)' }}>SUPPORT</span>
+                </h1>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
+                  Need help with your purchase request or payment transfer? Contact our team directly.
+                </p>
+              </div>
+
+              {/* Contact Channels */}
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', marginBottom: '16px' }}>Direct Support Channels</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                  <a href={getWhatsAppLink()} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                    <div style={{ padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                      <span style={{ display: 'flex', padding: '10px', backgroundColor: 'rgba(37,211,102,0.1)', color: '#25d366', borderRadius: '50%', fontSize: '1.2rem' }}>
+                        💬
+                      </span>
+                      <div>
+                        <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>WhatsApp Chat</strong>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{contactInfo.whatsapp}</span>
+                      </div>
+                    </div>
+                  </a>
+                  <a href={getTelegramLink()} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                    <div style={{ padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                      <span style={{ display: 'flex', padding: '10px', backgroundColor: 'rgba(0,136,204,0.1)', color: '#0088cc', borderRadius: '50%', fontSize: '1.2rem' }}>
+                        ✈️
+                      </span>
+                      <div>
+                        <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Telegram Channel</strong>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>@{contactInfo.telegram}</span>
+                      </div>
+                    </div>
+                  </a>
+                  <a href={getInstagramLink()} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                    <div style={{ padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                      <span style={{ display: 'flex', padding: '10px', backgroundColor: 'rgba(225,48,108,0.1)', color: '#e1306c', borderRadius: '50%', fontSize: '1.2rem' }}>
+                        📸
+                      </span>
+                      <div>
+                        <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Instagram DM</strong>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>@{contactInfo.instagram}</span>
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              </div>
+
+              {/* Payment Details Card */}
+              <div style={{ padding: '24px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', color: 'var(--color-red)', marginBottom: '16px' }}>💳 Accepted Payment Networks</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.95rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Zain Cash:</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{contactInfo.zainCash}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Asiacell Transfer:</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{contactInfo.asiacell}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '4px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>QI Card Service:</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{contactInfo.qiCard}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
       </main>
 
@@ -392,82 +681,82 @@ export default function Home() {
         </div>
 
         <div className={styles.drawerBody}>
+          {checkoutToast && checkoutToastStyles && (
+            <div style={{ ...checkoutToastStyles, marginBottom: '16px' }}>
+              {checkoutToast.type === 'success' ? (
+                <CheckCircle2 size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+              ) : checkoutToast.type === 'error' ? (
+                <X size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+              ) : (
+                <Loader2 size={16} className="spin-animation" style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+              )}
+              {checkoutToast.message}
+            </div>
+          )}
+
           {showPayment ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ padding: '16px', backgroundColor: 'rgba(255,46,77,0.05)', border: '1px solid rgba(255,46,77,0.15)', borderRadius: 'var(--radius-md)' }}>
-                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--color-red)', marginBottom: '8px' }}>Manual Payment Instructions</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                  Yasin Store catalog operates via manual balance transfers. Send payment using one of the methods below and contact the administrator with your order details.
-                </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Request ID Badge */}
+              <div style={{ textAlign: 'center', padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 'bold', marginBottom: '8px' }}>Your Request ID</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '900', fontFamily: 'var(--font-heading)', color: 'var(--color-red)', letterSpacing: '2px' }}>{activeRequestId}</div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '8px' }}>Send this ID to the admin via any channel below</p>
               </div>
 
-              {/* Payment details list */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ padding: '12px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 'bold' }}>Zain Cash Wallet</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--text-primary)', marginTop: '4px' }}>{contactInfo.zainCash}</div>
+              {/* Payment Methods - Icons Only */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', padding: '12px 0' }}>
+                <div
+                  title="Zain Cash"
+                  style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}
+                >
+                  💳
                 </div>
-                <div style={{ padding: '12px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 'bold' }}>Asiacell Transfer</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--text-primary)', marginTop: '4px' }}>{contactInfo.asiacell}</div>
+                <div
+                  title="Asiacell"
+                  style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}
+                >
+                  📱
                 </div>
-                <div style={{ padding: '12px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 'bold' }}>QI Card Service</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--text-primary)', marginTop: '4px' }}>{contactInfo.qiCard}</div>
+                <div
+                  title="QI Card"
+                  style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}
+                >
+                  🏦
                 </div>
               </div>
 
-              {/* Order Message Box */}
+              {/* Contact Admin Links - Compact */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Order Message Template</span>
-                <div style={{ position: 'relative', padding: '16px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: '1.4', fontStyle: 'italic' }}>
-                  {getOrderSummaryText()}
-                  <button 
-                    onClick={handleCopyOrder}
-                    style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--color-red)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    title="Copy to clipboard"
+                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', textAlign: 'center' }}>Contact Admin to Confirm</span>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <a 
+                    href={getWhatsAppLink()} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', borderRadius: 'var(--radius-md)', backgroundColor: '#25D366', color: '#fff', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}
                   >
-                    {copied ? <Check size={16} /> : <Copy size={16} />}
-                  </button>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24z"/></svg>
+                    WhatsApp
+                  </a>
+                  <a 
+                    href={getTelegramLink()} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', borderRadius: 'var(--radius-md)', backgroundColor: '#0088cc', color: '#fff', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.18l-1.97 9.28c-.15.65-.53.81-1.08.5L11.5 15.7l-1.45 1.4c-.16.16-.3.3-.61.3l.21-3.08 5.61-5.07c.24-.22-.05-.34-.38-.13L7.82 13.5l-3-1c-.65-.2-1-.65.05-1.1l11.75-4.5c.54-.2 1 .1.84.78z"/></svg>
+                    Telegram
+                  </a>
+                  <a 
+                    href={getInstagramLink()} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', borderRadius: 'var(--radius-md)', backgroundColor: '#E1306C', color: '#fff', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                    Instagram
+                  </a>
                 </div>
-              </div>
-
-              {/* Chat Platforms Links */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Contact Admin to Verify & Receive Game</span>
-                
-                <a 
-                  href={getWhatsAppLink()} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className={styles.btn}
-                  style={{ backgroundColor: '#25D366', color: '#ffffff', textDecoration: 'none' }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '6px' }}><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.852.002-2.63-1.013-5.101-2.859-6.95C16.63 1.953 14.16 1.9 11.537 1.9c-5.442 0-9.87 4.42-9.874 9.855-.001 1.77.472 3.498 1.368 5.03l-.974 3.565 3.655-.959zM17.47 14.65c-.32-.16-1.89-.93-2.18-1.04-.3-.1-.51-.16-.72.16-.21.32-.82 1.04-1.01 1.25-.19.21-.39.24-.71.08-.32-.16-1.35-.5-2.57-1.59-.95-.85-1.59-1.9-1.78-2.22-.19-.32-.02-.49.14-.65.15-.14.32-.37.48-.56.16-.18.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.74-.99-2.38-.26-.64-.52-.55-.72-.56l-.61-.01c-.2 0-.53.07-.8.37-.28.3-1.07 1.04-1.07 2.54s1.09 2.95 1.24 3.15c.15.2 2.14 3.27 5.19 4.58.72.31 1.29.5 1.73.64.73.23 1.39.2 1.92.12.59-.09 1.89-.77 2.15-1.52.27-.75.27-1.4.19-1.52-.08-.12-.3-.19-.62-.35z"/></svg>
-                  Message on WhatsApp
-                </a>
-
-                <a 
-                  href={getTelegramLink()} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className={styles.btn}
-                  style={{ backgroundColor: '#0088cc', color: '#ffffff', textDecoration: 'none' }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '6px' }}><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.18l-1.97 9.28c-.15.65-.53.81-1.08.5L11.5 15.7l-1.45 1.4c-.16.16-.3.3-.61.3l.21-3.08 5.61-5.07c.24-.22-.05-.34-.38-.13L7.82 13.5l-3-1c-.65-.2-1-.65.05-1.1l11.75-4.5c.54-.2 1 .1.84.78z"/></svg>
-                  Message on Telegram
-                </a>
-
-                <a 
-                  href={getInstagramLink()} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className={styles.btn}
-                  style={{ backgroundColor: '#E1306C', color: '#ffffff', textDecoration: 'none' }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '6px' }}><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-                  Message on Instagram
-                </a>
               </div>
             </div>
           ) : cart.length === 0 ? (
@@ -542,8 +831,13 @@ export default function Home() {
                 <button 
                   className={`${styles.btn} ${styles.btnPrimary} ${styles.checkoutBtn}`}
                   onClick={handleCheckout}
+                  disabled={checkoutLoading}
                 >
-                  Secure Checkout <ArrowRight size={18} />
+                  {checkoutLoading ? (
+                    <><Loader2 size={18} className="spin-animation" /> Processing...</>
+                  ) : (
+                    <>Secure Checkout <ArrowRight size={18} /></>
+                  )}
                 </button>
               </>
             )}

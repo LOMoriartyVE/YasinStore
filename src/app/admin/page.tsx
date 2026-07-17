@@ -33,7 +33,16 @@ export default function AdminPage() {
 
   // Form States
   const [title, setTitle] = useState('');
-  const [genre, setGenre] = useState('Cyberpunk Action');
+  const [genre, setGenre] = useState('Dark Fantasy RPG');
+  const [genresList, setGenresList] = useState<string[]>([
+    'Dark Fantasy RPG', 
+    'Racing Simulation', 
+    'Sci-Fi Exploration', 
+    'Tactical Stealth',
+    'Action Adventure',
+    'First-Person Shooter'
+  ]);
+  const [newGenreInput, setNewGenreInput] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [posterFile, setPosterFile] = useState<string | null>(null);
@@ -103,7 +112,6 @@ export default function AdminPage() {
 
   const togglePlatform = (platform: string) => {
     if (selectedPlatforms.includes(platform)) {
-      // Keep at least one platform selected
       if (selectedPlatforms.length > 1) {
         setSelectedPlatforms(selectedPlatforms.filter(p => p !== platform));
       }
@@ -112,10 +120,23 @@ export default function AdminPage() {
     }
   };
 
+  const handleAddGenre = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const trimmed = newGenreInput.trim();
+    if (trimmed) {
+      if (!genresList.includes(trimmed)) {
+        setGenresList([...genresList, trimmed]);
+      }
+      setGenre(trimmed);
+      setNewGenreInput('');
+      showToast(`Genre "${trimmed}" added and selected.`);
+    }
+  };
+
   const handleAddGame = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title || !description || !price || !released || selectedPlatforms.length === 0) {
+    if (!title || !price || !released || selectedPlatforms.length === 0) {
       alert('Please fill in all required fields.');
       return;
     }
@@ -134,7 +155,7 @@ export default function AdminPage() {
       id: newId,
       title,
       genre,
-      description,
+      description: description || 'No description provided.',
       price: parseFloat(parseFloat(price).toFixed(2)),
       poster: finalPoster,
       released,
@@ -175,7 +196,6 @@ export default function AdminPage() {
     { name: 'Switch', icon: <Smartphone size={14} /> }
   ];
 
-  // Render Login overlay screen if not authenticated
   if (!isAuthenticated) {
     return (
       <div className={styles.lockScreen}>
@@ -243,40 +263,57 @@ export default function AdminPage() {
 
             <div className={styles.formGroup}>
               <label className={styles.label}>Genre *</label>
-              <select 
-                className={styles.select}
-                value={genre}
-                onChange={(e) => setGenre(e.target.value)}
-              >
-                <option value="Cyberpunk Action">Cyberpunk Action</option>
-                <option value="Dark Fantasy RPG">Dark Fantasy RPG</option>
-                <option value="Racing Simulation">Racing Simulation</option>
-                <option value="Sci-Fi Exploration">Sci-Fi Exploration</option>
-                <option value="Tactical Stealth">Tactical Stealth</option>
-                <option value="Action Adventure">Action Adventure</option>
-                <option value="First-Person Shooter">First-Person Shooter</option>
-                <option value="Sports">Sports</option>
-              </select>
+              <div className={styles.platformsGrid} style={{ marginBottom: '8px' }}>
+                {genresList.map((g) => {
+                  const isActive = genre === g;
+                  return (
+                    <button
+                      type="button"
+                      key={g}
+                      className={`${styles.platformBtn} ${isActive ? styles.platformBtnActive : ''}`}
+                      onClick={() => setGenre(g)}
+                    >
+                      {g}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Or type a custom genre..." 
+                  className={styles.input}
+                  value={newGenreInput}
+                  onChange={(e) => setNewGenreInput(e.target.value)}
+                />
+                <button 
+                  type="button" 
+                  className={styles.backBtn}
+                  style={{ whiteSpace: 'nowrap', padding: '0 16px' }}
+                  onClick={handleAddGenre}
+                >
+                  Add Genre
+                </button>
+              </div>
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Description *</label>
+              <label className={styles.label}>Description</label>
               <textarea 
-                placeholder="Write a compelling game synopsis..." 
+                placeholder="Write a game synopsis (optional)..." 
                 className={styles.textarea}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                required
               />
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Price (USD) *</label>
+              <label className={styles.label}>Price (IQD) *</label>
               <input 
                 type="number" 
-                step="0.01" 
+                step="500" 
                 min="0"
-                placeholder="59.99" 
+                placeholder="e.g. 75000" 
                 className={styles.input}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
@@ -392,7 +429,7 @@ export default function AdminPage() {
                     <h3 className={styles.itemTitle}>{game.title}</h3>
                     <div className={styles.itemMeta}>
                       <span className={styles.itemGenre}>{game.genre}</span>
-                      <span className={styles.itemPrice}>${game.price}</span>
+                      <span className={styles.itemPrice}>{game.price.toLocaleString()} IQD</span>
                     </div>
                   </div>
                   <button 

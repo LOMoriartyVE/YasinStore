@@ -127,7 +127,8 @@ export default function Home() {
 
   const cartTotal = cart.reduce((total, item) => total + item.price, 0);
 
-  const genres = ['All', 'Action', 'RPG', 'Racing', 'Sci-Fi', 'Stealth'];
+  // Dynamically extract unique genres from the catalog database
+  const genres = ['All', ...Array.from(new Set(allGames.map(g => g.genre))).filter(Boolean)];
 
   return (
     <div className={styles.page}>
@@ -148,30 +149,6 @@ export default function Home() {
                 onClick={() => { setGenre('All'); setSearch(''); }}
               >
                 Home
-              </button>
-            </li>
-            <li>
-              <button 
-                className={`${styles.pill} ${genre === 'Action' ? styles.pillActive : ''}`}
-                onClick={() => setGenre('Action')}
-              >
-                Action
-              </button>
-            </li>
-            <li>
-              <button 
-                className={`${styles.pill} ${genre === 'RPG' ? styles.pillActive : ''}`}
-                onClick={() => setGenre('RPG')}
-              >
-                RPG
-              </button>
-            </li>
-            <li>
-              <button 
-                className={`${styles.pill} ${genre === 'Racing' ? styles.pillActive : ''}`}
-                onClick={() => setGenre('Racing')}
-              >
-                Racing
               </button>
             </li>
             <li>
@@ -211,43 +188,7 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="container" style={{ flexGrow: 1 }}>
-        
-        {/* Hero Section - Highlight Featured Game */}
-        <section className={styles.heroContainer}>
-          <div className={styles.hero}>
-            <div className={styles.heroOverlay}></div>
-            <div className={styles.heroContent}>
-              <span className={styles.heroTag}>
-                <TrendingUp size={16} /> Featured Masterpiece
-              </span>
-              <h1 className={styles.heroTitle}>NEON SYNDICATE</h1>
-              <p className={styles.heroDesc}>
-                Step into a high-octane cyberpunk world. Hack, fight, and survive in the dark, neon-lit alleys of a sprawling megalopolis. Experience the future of immersive tactical action.
-              </p>
-              <div className={styles.heroButtons}>
-                <button 
-                  className={`${styles.btn} ${styles.btnPrimary}`}
-                  onClick={() => {
-                    const neonGame = games.find(g => g.id === 'neon-syndicate');
-                    if (neonGame) addToCart(neonGame);
-                  }}
-                >
-                  Acquire Now — $59.99
-                </button>
-                <button 
-                  className={`${styles.btn} ${styles.btnSecondary}`}
-                  onClick={() => {
-                    const neonGame = games.find(g => g.id === 'neon-syndicate');
-                    if (neonGame) setSelectedGame(neonGame);
-                  }}
-                >
-                  Explore Details
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
+      <main className="container" style={{ flexGrow: 1, paddingTop: '40px' }}>
 
         {/* Catalog Header & Filters */}
         <section className={styles.catalogHeader}>
@@ -335,7 +276,7 @@ export default function Home() {
                     <p className={styles.cardDesc}>{game.description}</p>
 
                     <div className={styles.cardFooter}>
-                      <span className={styles.price}>${game.price}</span>
+                      <span className={styles.price}>{game.price.toLocaleString()} IQD</span>
                       <button 
                         className={styles.cardBtn}
                         onClick={(e) => addToCart(game, e)}
@@ -407,7 +348,7 @@ export default function Home() {
                   <div className={styles.cartItemInfo}>
                     <h4 className={styles.cartItemTitle}>{item.title}</h4>
                     <span className={styles.cartItemGenre}>{item.genre}</span>
-                    <span className={styles.cartItemPrice}>${item.price}</span>
+                    <span className={styles.cartItemPrice}>{item.price.toLocaleString()} IQD</span>
                   </div>
                   <button 
                     className={styles.removeBtn}
@@ -426,7 +367,7 @@ export default function Home() {
           <div className={styles.drawerFooter}>
             <div className={styles.totalRow}>
               <span className={styles.totalLabel}>Subtotal</span>
-              <span className={styles.totalPrice}>${cartTotal.toFixed(2)}</span>
+              <span className={styles.totalPrice}>{cartTotal.toLocaleString()} IQD</span>
             </div>
             <button 
               className={`${styles.btn} ${styles.btnPrimary} ${styles.checkoutBtn}`}
@@ -486,7 +427,7 @@ export default function Home() {
                 <div className={styles.modalFooter}>
                   <div className={styles.modalPrice}>
                     <span className={styles.modalPriceLabel}>Instant Access</span>
-                    <span className={styles.modalPriceVal}>${selectedGame.price}</span>
+                    <span className={styles.modalPriceVal}>{selectedGame.price.toLocaleString()} IQD</span>
                   </div>
                   <button 
                     className={`${styles.btn} ${styles.btnPrimary} ${styles.modalBtn}`}

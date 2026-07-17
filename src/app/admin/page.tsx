@@ -33,8 +33,9 @@ export default function AdminPage() {
 
   // Form States
   const [title, setTitle] = useState('');
-  const [genre, setGenre] = useState('Dark Fantasy RPG');
+  const [genre, setGenre] = useState('Uncategorized');
   const [genresList, setGenresList] = useState<string[]>([
+    'Uncategorized',
     'Dark Fantasy RPG', 
     'Racing Simulation', 
     'Sci-Fi Exploration', 
@@ -49,6 +50,14 @@ export default function AdminPage() {
   const [posterFileName, setPosterFileName] = useState('');
   const [released, setReleased] = useState(new Date().toISOString().split('T')[0]);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['PC']);
+
+  // Admin Contact Details state
+  const [whatsapp, setWhatsapp] = useState('+964 770 000 0000');
+  const [instagram, setInstagram] = useState('yasin.store');
+  const [telegram, setTelegram] = useState('yasin_store');
+  const [zainCash, setZainCash] = useState('0770 000 0000');
+  const [asiacell, setAsiacell] = useState('0770 000 0000');
+  const [qiCard, setQiCard] = useState('Available upon request');
 
   // Load games, theme, and authentication
   useEffect(() => {
@@ -67,6 +76,32 @@ export default function AdminPage() {
     } else {
       setGames(staticGames);
       localStorage.setItem('yasin-store-games', JSON.stringify(staticGames));
+    }
+
+    // Load contact info
+    const savedContact = localStorage.getItem('yasin-store-contact-info');
+    if (savedContact) {
+      try {
+        const parsed = JSON.parse(savedContact);
+        if (parsed.whatsapp) setWhatsapp(parsed.whatsapp);
+        if (parsed.instagram) setInstagram(parsed.instagram);
+        if (parsed.telegram) setTelegram(parsed.telegram);
+        if (parsed.zainCash) setZainCash(parsed.zainCash);
+        if (parsed.asiacell) setAsiacell(parsed.asiacell);
+        if (parsed.qiCard) setQiCard(parsed.qiCard);
+      } catch (e) {
+        console.error('Failed to parse contact info', e);
+      }
+    }
+
+    // Load genres list
+    const savedGenres = localStorage.getItem('yasin-store-genres');
+    if (savedGenres) {
+      try {
+        setGenresList(JSON.parse(savedGenres));
+      } catch (e) {
+        console.error('Failed to parse genres list', e);
+      }
     }
 
     // Check if authenticated in session
@@ -124,13 +159,50 @@ export default function AdminPage() {
     e.preventDefault();
     const trimmed = newGenreInput.trim();
     if (trimmed) {
+      let updated = genresList;
       if (!genresList.includes(trimmed)) {
-        setGenresList([...genresList, trimmed]);
+        updated = [...genresList, trimmed];
+        setGenresList(updated);
+        localStorage.setItem('yasin-store-genres', JSON.stringify(updated));
       }
       setGenre(trimmed);
       setNewGenreInput('');
       showToast(`Genre "${trimmed}" added and selected.`);
     }
+  };
+
+  const handleRemoveGenre = (e: React.MouseEvent, genreToRemove: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (genreToRemove === 'Uncategorized') {
+      alert('Cannot delete the fallback genre.');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to remove the genre "${genreToRemove}"? Any products currently assigned this genre will be converted to "Uncategorized".`)) {
+      return;
+    }
+
+    const updatedGenres = genresList.filter(g => g !== genreToRemove);
+    setGenresList(updatedGenres);
+    localStorage.setItem('yasin-store-genres', JSON.stringify(updatedGenres));
+
+    if (genre === genreToRemove) {
+      setGenre('Uncategorized');
+    }
+
+    // Update games list
+    const updatedGames = games.map(game => {
+      if (game.genre === genreToRemove) {
+        return { ...game, genre: 'Uncategorized' };
+      }
+      return game;
+    });
+    setGames(updatedGames);
+    localStorage.setItem('yasin-store-games', JSON.stringify(updatedGames));
+
+    showToast(`Genre "${genreToRemove}" removed, and affected products updated.`);
   };
 
   const handleAddGame = (e: React.FormEvent) => {
@@ -189,6 +261,20 @@ export default function AdminPage() {
     showToast(`"${gameTitle}" removed.`);
   };
 
+  const handleSaveContactInfo = (e: React.FormEvent) => {
+    e.preventDefault();
+    const contactData = {
+      whatsapp,
+      instagram,
+      telegram,
+      zainCash,
+      asiacell,
+      qiCard
+    };
+    localStorage.setItem('yasin-store-contact-info', JSON.stringify(contactData));
+    showToast('Contact & Payment details updated!');
+  };
+
   const platformsList = [
     { name: 'PC', icon: <Monitor size={14} /> },
     { name: 'PS5', icon: <Tv size={14} /> },
@@ -236,9 +322,14 @@ export default function AdminPage() {
           </h1>
           <span className={styles.subtitle}>Manage gaming products and inventory catalog</span>
         </div>
-        <Link href="/" className={styles.backBtn}>
-          <ArrowLeft size={16} /> Back to Store
-        </Link>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <Link href="/admin/requests" className={styles.backBtn}>
+            View User Requests
+          </Link>
+          <Link href="/" className={styles.backBtn}>
+            <ArrowLeft size={16} /> Back to Store
+          </Link>
+        </div>
       </header>
 
       {/* Main Console */}
@@ -267,14 +358,47 @@ export default function AdminPage() {
                 {genresList.map((g) => {
                   const isActive = genre === g;
                   return (
-                    <button
-                      type="button"
-                      key={g}
-                      className={`${styles.platformBtn} ${isActive ? styles.platformBtnActive : ''}`}
-                      onClick={() => setGenre(g)}
+                    <div 
+                      key={g} 
+                      style={{ 
+                        position: 'relative', 
+                        display: 'inline-flex', 
+                        alignItems: 'center' 
+                      }}
                     >
-                      {g}
-                    </button>
+                      <button
+                        type="button"
+                        className={`${styles.platformBtn} ${isActive ? styles.platformBtnActive : ''}`}
+                        onClick={() => setGenre(g)}
+                        style={{ paddingRight: g !== 'Uncategorized' ? '30px' : undefined }}
+                      >
+                        {g}
+                      </button>
+                      {g !== 'Uncategorized' && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemoveGenre(e, g)}
+                          style={{
+                            position: 'absolute',
+                            right: '8px',
+                            background: 'none',
+                            border: 'none',
+                            color: isActive ? '#ffffff' : 'var(--color-red)',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            opacity: 0.7,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 2
+                          }}
+                          title={`Remove genre ${g}`}
+                        >
+                          &times;
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -399,6 +523,78 @@ export default function AdminPage() {
 
             <button type="submit" className={styles.submitBtn}>
               <Plus size={18} /> Add Game to Catalog
+            </button>
+          </form>
+        </section>
+
+        {/* Contact & Payment Info Settings Card */}
+        <section className={styles.panelCard} style={{ marginTop: '24px' }}>
+          <h2 className={styles.panelTitle}>
+            <Database size={20} className={styles.titleRed} /> Store Contact & Payment Info
+          </h2>
+          <form className={styles.form} onSubmit={handleSaveContactInfo}>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>WhatsApp Number</label>
+              <input 
+                type="text" 
+                className={styles.input} 
+                value={whatsapp} 
+                onChange={(e) => setWhatsapp(e.target.value)} 
+                placeholder="+964 770 000 0000"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Instagram Username</label>
+              <input 
+                type="text" 
+                className={styles.input} 
+                value={instagram} 
+                onChange={(e) => setInstagram(e.target.value)} 
+                placeholder="yasin.store"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Telegram Tag</label>
+              <input 
+                type="text" 
+                className={styles.input} 
+                value={telegram} 
+                onChange={(e) => setTelegram(e.target.value)} 
+                placeholder="yasin_store"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Zain Cash Wallet</label>
+              <input 
+                type="text" 
+                className={styles.input} 
+                value={zainCash} 
+                onChange={(e) => setZainCash(e.target.value)} 
+                placeholder="0770 000 0000"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Asiacell Number</label>
+              <input 
+                type="text" 
+                className={styles.input} 
+                value={asiacell} 
+                onChange={(e) => setAsiacell(e.target.value)} 
+                placeholder="0770 000 0000"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>QI Card Details</label>
+              <input 
+                type="text" 
+                className={styles.input} 
+                value={qiCard} 
+                onChange={(e) => setQiCard(e.target.value)} 
+                placeholder="Available upon request"
+              />
+            </div>
+            <button type="submit" className={styles.submitBtn} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
+              Save Contact Details
             </button>
           </form>
         </section>

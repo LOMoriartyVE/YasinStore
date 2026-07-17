@@ -16,7 +16,9 @@ import {
   Trash2, 
   CheckCircle2, 
   ArrowRight,
-  TrendingUp
+  TrendingUp,
+  Copy,
+  Check
 } from 'lucide-react';
 import { Game, staticGames } from './gamesData';
 
@@ -31,6 +33,19 @@ export default function Home() {
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
+
+  // Manual payment & contact states
+  const [showPayment, setShowPayment] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [activeRequestId, setActiveRequestId] = useState('');
+  const [contactInfo, setContactInfo] = useState({
+    whatsapp: '+964 770 000 0000',
+    instagram: 'yasin.store',
+    telegram: 'yasin_store',
+    zainCash: '0770 000 0000',
+    asiacell: '0770 000 0000',
+    qiCard: 'Available upon request'
+  });
 
   // Load theme and games from localStorage on mount
   useEffect(() => {
@@ -59,6 +74,16 @@ export default function Home() {
         setCart(JSON.parse(savedCart));
       } catch (e) {
         console.error('Failed to parse cart', e);
+      }
+    }
+
+    // Load contact information from localStorage
+    const savedContact = localStorage.getItem('yasin-store-contact-info');
+    if (savedContact) {
+      try {
+        setContactInfo(JSON.parse(savedContact));
+      } catch (e) {
+        console.error('Failed to parse contact info', e);
       }
     }
   }, []);
@@ -113,16 +138,75 @@ export default function Home() {
     const updatedCart = cart.filter(item => item.id !== gameId);
     setCart(updatedCart);
     localStorage.setItem('yasin-store-cart', JSON.stringify(updatedCart));
+    // If cart becomes empty, exit payment screen
+    if (updatedCart.length === 0) {
+      setShowPayment(false);
+    }
   };
 
   const handleCheckout = () => {
-    setCheckoutSuccess(true);
-    setTimeout(() => {
-      setCart([]);
-      localStorage.removeItem('yasin-store-cart');
-      setCartOpen(false);
-      setCheckoutSuccess(false);
-    }, 2500);
+    const reqId = 'REQ-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+    setActiveRequestId(reqId);
+    
+    // Save request to localStorage so admin can see it
+    const newRequest = {
+      id: reqId,
+      games: cart.map(item => ({ id: item.id, title: item.title, price: item.price })),
+      totalPrice: cartTotal,
+      status: 'Pending',
+      createdAt: new Date().toLocaleString()
+    };
+    
+    const existing = localStorage.getItem('yasin-store-requests');
+    let requestsList = [];
+    if (existing) {
+      try {
+        requestsList = JSON.parse(existing);
+      } catch (e) {
+        console.error('Failed to parse requests', e);
+      }
+    }
+    requestsList = [newRequest, ...requestsList];
+    localStorage.setItem('yasin-store-requests', JSON.stringify(requestsList));
+    
+    setShowPayment(true);
+  };
+
+  const closeCartDrawer = () => {
+    setCartOpen(false);
+    setShowPayment(false);
+  };
+
+  const handleClearCart = () => {
+    setCart([]);
+    localStorage.removeItem('yasin-store-cart');
+    closeCartDrawer();
+  };
+
+  const getOrderSummaryText = () => {
+    const itemsText = cart.map(item => item.title).join(', ');
+    return `Hello Yasin Store! My Request ID is ${activeRequestId}. Games: ${itemsText} (Total: ${cartTotal.toLocaleString()} IQD). Please confirm my order!`;
+  };
+
+  const handleCopyOrder = () => {
+    navigator.clipboard.writeText(getOrderSummaryText());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const getWhatsAppLink = () => {
+    const cleanNum = contactInfo.whatsapp.replace(/[^0-9]/g, '');
+    return `https://wa.me/${cleanNum}?text=${encodeURIComponent(getOrderSummaryText())}`;
+  };
+
+  const getTelegramLink = () => {
+    const cleanTag = contactInfo.telegram.replace('@', '').trim();
+    return `https://t.me/${cleanTag}`;
+  };
+
+  const getInstagramLink = () => {
+    const cleanUser = contactInfo.instagram.replace('@', '').trim();
+    return `https://instagram.com/${cleanUser}`;
   };
 
   const cartTotal = cart.reduce((total, item) => total + item.price, 0);
@@ -150,11 +234,6 @@ export default function Home() {
               >
                 Home
               </button>
-            </li>
-            <li>
-              <Link href="/admin" className={styles.navLink}>
-                Admin
-              </Link>
             </li>
           </ul>
 
@@ -298,26 +377,98 @@ export default function Home() {
       {/* Cart Drawer Overlay */}
       <div 
         className={`${styles.drawerOverlay} ${cartOpen ? styles.drawerOverlayActive : ''}`}
-        onClick={() => setCartOpen(false)}
+        onClick={closeCartDrawer}
       ></div>
 
       {/* Cart Drawer */}
       <div className={`${styles.drawer} ${cartOpen ? styles.drawerActive : ''}`}>
         <div className={styles.drawerHeader}>
           <h2 className={styles.drawerTitle}>
-            <ShoppingBag size={24} className={styles.logoRed} /> Shopping Cart
+            <ShoppingBag size={24} className={styles.logoRed} /> {showPayment ? 'Manual Checkout' : 'Shopping Cart'}
           </h2>
-          <button className={styles.closeBtn} onClick={() => setCartOpen(false)}>
+          <button className={styles.closeBtn} onClick={closeCartDrawer}>
             <X size={20} />
           </button>
         </div>
 
         <div className={styles.drawerBody}>
-          {checkoutSuccess ? (
-            <div className={styles.emptyCart}>
-              <CheckCircle2 size={64} color="var(--color-red)" className="red-glow-effect" style={{ borderRadius: '50%' }} />
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem' }}>ORDER SECURED</h3>
-              <p style={{ color: 'var(--text-secondary)' }}>Preparing your download keys. Enjoy your gaming sessions!</p>
+          {showPayment ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ padding: '16px', backgroundColor: 'rgba(255,46,77,0.05)', border: '1px solid rgba(255,46,77,0.15)', borderRadius: 'var(--radius-md)' }}>
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--color-red)', marginBottom: '8px' }}>Manual Payment Instructions</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                  Yasin Store catalog operates via manual balance transfers. Send payment using one of the methods below and contact the administrator with your order details.
+                </p>
+              </div>
+
+              {/* Payment details list */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ padding: '12px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 'bold' }}>Zain Cash Wallet</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--text-primary)', marginTop: '4px' }}>{contactInfo.zainCash}</div>
+                </div>
+                <div style={{ padding: '12px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 'bold' }}>Asiacell Transfer</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--text-primary)', marginTop: '4px' }}>{contactInfo.asiacell}</div>
+                </div>
+                <div style={{ padding: '12px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 'bold' }}>QI Card Service</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--text-primary)', marginTop: '4px' }}>{contactInfo.qiCard}</div>
+                </div>
+              </div>
+
+              {/* Order Message Box */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Order Message Template</span>
+                <div style={{ position: 'relative', padding: '16px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: '1.4', fontStyle: 'italic' }}>
+                  {getOrderSummaryText()}
+                  <button 
+                    onClick={handleCopyOrder}
+                    style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--color-red)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    title="Copy to clipboard"
+                  >
+                    {copied ? <Check size={16} /> : <Copy size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Chat Platforms Links */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Contact Admin to Verify & Receive Game</span>
+                
+                <a 
+                  href={getWhatsAppLink()} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className={styles.btn}
+                  style={{ backgroundColor: '#25D366', color: '#ffffff', textDecoration: 'none' }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '6px' }}><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.852.002-2.63-1.013-5.101-2.859-6.95C16.63 1.953 14.16 1.9 11.537 1.9c-5.442 0-9.87 4.42-9.874 9.855-.001 1.77.472 3.498 1.368 5.03l-.974 3.565 3.655-.959zM17.47 14.65c-.32-.16-1.89-.93-2.18-1.04-.3-.1-.51-.16-.72.16-.21.32-.82 1.04-1.01 1.25-.19.21-.39.24-.71.08-.32-.16-1.35-.5-2.57-1.59-.95-.85-1.59-1.9-1.78-2.22-.19-.32-.02-.49.14-.65.15-.14.32-.37.48-.56.16-.18.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.74-.99-2.38-.26-.64-.52-.55-.72-.56l-.61-.01c-.2 0-.53.07-.8.37-.28.3-1.07 1.04-1.07 2.54s1.09 2.95 1.24 3.15c.15.2 2.14 3.27 5.19 4.58.72.31 1.29.5 1.73.64.73.23 1.39.2 1.92.12.59-.09 1.89-.77 2.15-1.52.27-.75.27-1.4.19-1.52-.08-.12-.3-.19-.62-.35z"/></svg>
+                  Message on WhatsApp
+                </a>
+
+                <a 
+                  href={getTelegramLink()} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className={styles.btn}
+                  style={{ backgroundColor: '#0088cc', color: '#ffffff', textDecoration: 'none' }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '6px' }}><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.18l-1.97 9.28c-.15.65-.53.81-1.08.5L11.5 15.7l-1.45 1.4c-.16.16-.3.3-.61.3l.21-3.08 5.61-5.07c.24-.22-.05-.34-.38-.13L7.82 13.5l-3-1c-.65-.2-1-.65.05-1.1l11.75-4.5c.54-.2 1 .1.84.78z"/></svg>
+                  Message on Telegram
+                </a>
+
+                <a 
+                  href={getInstagramLink()} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className={styles.btn}
+                  style={{ backgroundColor: '#E1306C', color: '#ffffff', textDecoration: 'none' }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '6px' }}><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                  Message on Instagram
+                </a>
+              </div>
             </div>
           ) : cart.length === 0 ? (
             <div className={styles.emptyCart}>
@@ -326,7 +477,7 @@ export default function Home() {
               <p style={{ color: 'var(--text-secondary)' }}>Explore our catalog and add some premium games to start playing.</p>
               <button 
                 className={`${styles.btn} ${styles.btnPrimary}`} 
-                onClick={() => setCartOpen(false)}
+                onClick={closeCartDrawer}
                 style={{ marginTop: '12px' }}
               >
                 Back to Catalog
@@ -363,18 +514,39 @@ export default function Home() {
           )}
         </div>
 
-        {cart.length > 0 && !checkoutSuccess && (
+        {cart.length > 0 && (
           <div className={styles.drawerFooter}>
-            <div className={styles.totalRow}>
-              <span className={styles.totalLabel}>Subtotal</span>
-              <span className={styles.totalPrice}>{cartTotal.toLocaleString()} IQD</span>
-            </div>
-            <button 
-              className={`${styles.btn} ${styles.btnPrimary} ${styles.checkoutBtn}`}
-              onClick={handleCheckout}
-            >
-              Secure Checkout <ArrowRight size={18} />
-            </button>
+            {showPayment ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                <button 
+                  className={`${styles.btn} ${styles.btnPrimary}`} 
+                  onClick={handleClearCart}
+                  style={{ width: '100%' }}
+                >
+                  Clear Cart & Close Console
+                </button>
+                <button 
+                  className={`${styles.btn} ${styles.btnSecondary}`} 
+                  onClick={() => setShowPayment(false)}
+                  style={{ width: '100%' }}
+                >
+                  Back to Shopping Cart
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className={styles.totalRow}>
+                  <span className={styles.totalLabel}>Subtotal</span>
+                  <span className={styles.totalPrice}>{cartTotal.toLocaleString()} IQD</span>
+                </div>
+                <button 
+                  className={`${styles.btn} ${styles.btnPrimary} ${styles.checkoutBtn}`}
+                  onClick={handleCheckout}
+                >
+                  Secure Checkout <ArrowRight size={18} />
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

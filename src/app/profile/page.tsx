@@ -6,6 +6,7 @@ import Link from 'next/link';
 import styles from '../auth.module.css';
 import { supabase } from '../../lib/supabase';
 import { shortUUID, getPlatformLabel } from '../gamesData';
+import { getUserOrders, deleteUserOrder } from '../admin/actions';
 import {
   ArrowLeft,
   Loader2,
@@ -49,37 +50,38 @@ export default function ProfilePage() {
       }
       setUser(data.user);
       setAuthLoading(false);
-      fetchOrders();
+      fetchOrders(data.user.id);
     });
   }, [router]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (userId?: string) => {
+    const uid = userId || user?.id;
+    if (!uid) return;
     setOrdersLoading(true);
-    const { data, error } = await supabase
-      .from('requests')
-      .select('*, request_items(*)')
-      .order('created_at', { ascending: false });
+    const { data, error } = await getUserOrders(uid);
 
-    if (!error && data) {
+    if (error) {
+      console.error('Error fetching orders:', error);
+      showToast(`Error: ${error}`);
+    } else if (data) {
       setOrders(data as Order[]);
     }
     setOrdersLoading(false);
   };
 
   const handleDeleteOrder = async (orderId: string) => {
+    if (!user?.id) return;
     if (!confirm(`Delete order ${shortUUID(orderId)}?`)) return;
 
-    // Delete items first, then the request (RLS allows if user_id matches)
-    await supabase.from('request_items').delete().eq('request_id', orderId);
-    const { error } = await supabase.from('requests').delete().eq('id', orderId);
+    const { success, error } = await deleteUserOrder(user.id, orderId);
 
-    if (error) {
-      showToast(`Failed to delete: ${error.message}`);
+    if (!success) {
+      showToast(`Failed to delete: ${error || 'Unknown error'}`);
       return;
     }
 
     showToast(`Order ${shortUUID(orderId)} deleted.`);
-    fetchOrders();
+    fetchOrders(user.id);
   };
 
   const handleLogout = async () => {

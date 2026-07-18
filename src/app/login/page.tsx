@@ -1,23 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import styles from '../auth.module.css';
 import { supabase } from '../../lib/supabase';
-import { Gamepad2, Loader2 } from 'lucide-react';
+import { Gamepad2, Loader2, CheckCircle2 } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('yasin-store-theme') as 'light' | 'dark' | null;
     document.documentElement.setAttribute('data-theme', savedTheme || 'dark');
+
+    if (searchParams.get('verified') === 'true') {
+      setSuccess('Your email has been verified! You can now sign in.');
+    }
 
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
@@ -26,12 +32,13 @@ export default function LoginPage() {
         setChecking(false);
       }
     });
-  }, [router]);
+  }, [router, searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
 
     const { error: authError } = await supabase.auth.signInWithPassword({
       email,
@@ -64,6 +71,13 @@ export default function LoginPage() {
         </div>
         <h1 className={styles.authTitle}>Welcome Back</h1>
         <p className={styles.authDesc}>Sign in to your Yasin Store account to browse, purchase, and track your orders.</p>
+
+        {success && (
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }} className={styles.authSuccess}>
+            <CheckCircle2 size={16} />
+            <span>{success}</span>
+          </div>
+        )}
 
         <form onSubmit={handleLogin} className={styles.authForm}>
           <div>
@@ -107,5 +121,18 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className={styles.loadingScreen}>
+        <Loader2 size={32} className="spin-animation" />
+        <span className={styles.loadingText}>Loading Login Page...</span>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

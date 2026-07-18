@@ -160,3 +160,48 @@ export async function clearCompletedRequests(): Promise<{
   if (error) return { success: false, error: error.message };
   return { success: true, error: null };
 }
+
+// ────────────────────────────────────────
+// User Orders — secure retrieval/deletion bypassing RLS for user dashboard
+// ────────────────────────────────────────
+
+export async function getUserOrders(
+  userId: string
+): Promise<{ data: any[] | null; error: string | null }> {
+  const { data, error } = await supabaseAdmin
+    .from('requests')
+    .select('*, request_items(*)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) return { data: null, error: error.message };
+  return { data: data || [], error: null };
+}
+
+export async function deleteUserOrder(
+  userId: string,
+  orderId: string
+): Promise<{ success: boolean; error: string | null }> {
+  const { data, error: fetchError } = await supabaseAdmin
+    .from('requests')
+    .select('user_id')
+    .eq('id', orderId)
+    .single();
+
+  if (fetchError || !data) {
+    return { success: false, error: fetchError?.message || 'Order not found' };
+  }
+
+  if (data.user_id !== userId) {
+    return { success: false, error: 'Unauthorized to delete this order' };
+  }
+
+  await supabaseAdmin.from('request_items').delete().eq('request_id', orderId);
+  const { error } = await supabaseAdmin
+    .from('requests')
+    .delete()
+    .eq('id', orderId);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true, error: null };
+}

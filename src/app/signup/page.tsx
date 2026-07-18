@@ -46,9 +46,13 @@ export default function SignupPage() {
 
     setLoading(true);
 
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const { error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${origin}/auth/confirm`,
+      },
     });
 
     if (authError) {

@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
+  const [asiaPrice, setAsiaPrice] = useState('');
   const [posterFile, setPosterFile] = useState<string | null>(null);
   const [posterFileName, setPosterFileName] = useState('');
   const [platform, setPlatform] = useState(1); // bitmask — default PC
@@ -149,6 +150,7 @@ export default function AdminPage() {
     const newProduct: Product = {
       name,
       Price: parseFloat(parseFloat(price).toFixed(2)),
+      asia_price: asiaPrice ? parseFloat(parseFloat(asiaPrice).toFixed(2)) : null,
       description: description || null,
       image_url: posterFile || null,
       platform,
@@ -167,6 +169,7 @@ export default function AdminPage() {
     setName('');
     setDescription('');
     setPrice('');
+    setAsiaPrice('');
     setPosterFile(null);
     setPosterFileName('');
     setPlatform(1);
@@ -308,6 +311,19 @@ export default function AdminPage() {
               />
             </div>
 
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Asia Price (IQD)</label>
+              <input 
+                type="number" 
+                step="500" 
+                min="0"
+                placeholder="e.g. 65000 (optional)" 
+                className={styles.input}
+                value={asiaPrice}
+                onChange={(e) => setAsiaPrice(e.target.value)}
+              />
+            </div>
+
             {/* Platform Multi-Select Icons */}
             <div className={styles.formGroup}>
               <label className={styles.label}>Platforms * <span style={{ fontWeight: 400, textTransform: 'none', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>(click to toggle)</span></label>
@@ -418,36 +434,7 @@ export default function AdminPage() {
                 placeholder="yasin_store"
               />
             </div>
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Zain Cash Wallet</label>
-              <input 
-                type="text" 
-                className={styles.input} 
-                value={zainCash} 
-                onChange={(e) => setZainCash(e.target.value)} 
-                placeholder="0770 000 0000"
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Asiacell Number</label>
-              <input 
-                type="text" 
-                className={styles.input} 
-                value={asiacell} 
-                onChange={(e) => setAsiacell(e.target.value)} 
-                placeholder="0770 000 0000"
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label className={styles.label}>QI Card Details</label>
-              <input 
-                type="text" 
-                className={styles.input} 
-                value={qiCard} 
-                onChange={(e) => setQiCard(e.target.value)} 
-                placeholder="Available upon request"
-              />
-            </div>
+
             <button type="submit" className={styles.submitBtn} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
               Save Contact Details
             </button>
@@ -480,6 +467,9 @@ export default function AdminPage() {
                     <h3 className={styles.itemTitle}>{product.name}</h3>
                     <div className={styles.itemMeta}>
                       <span className={styles.itemPrice}>{product.Price.toLocaleString()} IQD</span>
+                      {product.asia_price != null && product.asia_price > 0 && (
+                        <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginLeft: '8px' }}>Asia: {product.asia_price.toLocaleString()} IQD</span>
+                      )}
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginLeft: '8px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid rgba(255,46,77,0.15)' }}>{getPlatformLabel(product.platform)}</span>
                     </div>
                   </div>

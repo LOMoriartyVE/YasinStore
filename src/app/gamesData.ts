@@ -15,6 +15,7 @@ export interface Game {
 export interface Product {
   name: string;
   Price: number;
+  asia_price: number | null;
   description: string | null;
   image_url: string | null;
   platform: number; // bitmask — see PLATFORM_OPTIONS
@@ -60,7 +61,7 @@ export function productToGame(product: Product): Game {
     genre: 'Uncategorized',
     description: product.description || 'No description provided.',
     price: product.Price,
-    asiaPrice: null,
+    asiaPrice: product.asia_price,
     poster: product.image_url || DEFAULT_LOGO_POSTER,
     released: '',
     platforms: getPlatformLabels(product.platform),

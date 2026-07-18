@@ -1,5 +1,6 @@
 'use server';
 
+import { randomUUID } from 'crypto';
 import { supabase } from '../../lib/supabase';
 
 export interface CheckoutItem {
@@ -17,7 +18,8 @@ export async function submitCheckout(
     return { success: false, error: 'Your cart is empty.' };
   }
 
-  const reqId = 'REQ-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+  // Generate a proper UUID v4 for the order ID
+  const reqId = randomUUID();
 
   const { error: reqError } = await supabase.from('requests').insert([
     {
@@ -39,7 +41,9 @@ export async function submitCheckout(
     platform: item.platform,
   }));
 
-  const { error: itemsError } = await supabase.from('request_items').insert(requestItems);
+  const { error: itemsError } = await supabase
+    .from('request_items')
+    .insert(requestItems);
 
   if (itemsError) {
     await supabase.from('requests').delete().eq('id', reqId);

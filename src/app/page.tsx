@@ -16,9 +16,11 @@ import {
   ArrowRight,
   Loader2
 } from 'lucide-react';
-import { Game, productToGame, DEFAULT_LOGO_POSTER, getPlatformLabel } from './gamesData';
+import { Game, productToGame, DEFAULT_LOGO_POSTER, getPlatformLabel, shortUUID } from './gamesData';
 import { supabase } from '../lib/supabase';
-import { submitCheckout } from './actions/checkout';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { User } from 'lucide-react';
 
 export default function Home() {
   const [allGames, setAllGames] = useState<Game[]>([]);
@@ -29,11 +31,13 @@ export default function Home() {
   const [cart, setCart] = useState<Game[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
+  const router = useRouter();
+  const [authUser, setAuthUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<'home' | 'library' | 'about' | 'support'>('home');
-  const [libraryGames, setLibraryGames] = useState<Game[]>([]);
+  const [activeTab, setActiveTab] = useState<'home' | 'about' | 'support'>('home');
 
   // Manual payment & contact states
   const [showPayment, setShowPayment] = useState(false);
@@ -49,12 +53,22 @@ export default function Home() {
     qiCard: 'Available upon request'
   });
 
-  // Load theme, products from Supabase, cart and contacts on mount
+  // Load theme, auth, products, cart, contacts on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('yasin-store-theme') as 'light' | 'dark' | null;
     const initialTheme = savedTheme || 'dark';
     setTheme(initialTheme);
     document.documentElement.setAttribute('data-theme', initialTheme);
+
+    // Check auth
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) {
+        router.push('/login');
+        return;
+      }
+      setAuthUser(data.user);
+      setAuthLoading(false);
+    });
 
     // Load products from Supabase
     const fetchProducts = async () => {
@@ -87,7 +101,7 @@ export default function Home() {
         console.error('Failed to parse contact info', e);
       }
     }
-  }, []);
+  }, [router]);
 
   // Filter games locally when search, genre, or allGames list changes
   useEffect(() => {
@@ -110,51 +124,6 @@ export default function Home() {
     setGames(filtered);
     setLoading(false);
   }, [search, genre, allGames]);
-
-  // Load library games from completed requests
-  useEffect(() => {
-    if (activeTab === 'library') {
-      const savedRequests = localStorage.getItem('yasin-store-requests');
-      if (savedRequests) {
-        try {
-          const parsedRequests = JSON.parse(savedRequests);
-          const completed = parsedRequests.filter((r: any) => r.status === 'Completed');
-          const gamesList: Game[] = [];
-          const seenIds = new Set();
-          
-          completed.forEach((req: any) => {
-            req.games.forEach((game: any) => {
-              if (!seenIds.has(game.id)) {
-                seenIds.add(game.id);
-                const fullDetails = allGames.find(g => g.id === game.id);
-                if (fullDetails) {
-                  gamesList.push(fullDetails);
-                } else {
-                  gamesList.push({
-                    id: game.id,
-                    title: game.title,
-                    genre: 'Unlocked Game',
-                    description: 'Purchased game key ready for activation.',
-                    price: game.price,
-                    asiaPrice: null,
-                    released: 'N/A',
-                    poster: '/logo.png',
-                    platforms: ['PC'],
-                    platform: 1,
-                  });
-                }
-              }
-            });
-          });
-          setLibraryGames(gamesList);
-        } catch (e) {
-          console.error('Failed to load library games', e);
-        }
-      } else {
-        setLibraryGames([]);
-      }
-    }
-  }, [activeTab, allGames]);
 
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
@@ -192,27 +161,54 @@ export default function Home() {
 
   const handleCheckout = async () => {
     setCheckoutLoading(true);
-    setCheckoutToast({ message: 'Submitting your order to the database...', type: 'loading' });
+    setCheckoutToast({ message: 'Submitting your order...', type: 'loading' });
 
-    const result = await submitCheckout(
-      cart.map((item) => ({ title: item.title, price: item.price, asiaPrice: item.asiaPrice, platform: item.platform })),
-      cartTotal
-    );
-
-    if (!result.success) {
-      console.error('Checkout failed:', result.error);
-      setCheckoutToast({
-        message: `Checkout failed: ${result.error || 'Unknown error'}. Please try again.`,
-        type: 'error',
-      });
+    // Get authenticated user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setCheckoutToast({ message: 'Please log in to checkout.', type: 'error' });
       setCheckoutLoading(false);
       return;
     }
 
-    setActiveRequestId(result.requestId!);
+    const reqId = crypto.randomUUID();
+
+    // Insert request with user_id
+    const { error: reqError } = await supabase.from('requests').insert([{
+      id: reqId,
+      user_id: user.id,
+      status: 'PENDING',
+      total_amount: cartTotal,
+    }]);
+
+    if (reqError) {
+      setCheckoutToast({ message: `Checkout failed: ${reqError.message}`, type: 'error' });
+      setCheckoutLoading(false);
+      return;
+    }
+
+    // Insert order items
+    const requestItems = cart.map((item) => ({
+      request_id: reqId,
+      product_name: item.title,
+      price: item.price,
+      asia_price: item.asiaPrice || 0,
+      platform: item.platform,
+    }));
+
+    const { error: itemsError } = await supabase.from('request_items').insert(requestItems);
+
+    if (itemsError) {
+      await supabase.from('requests').delete().eq('id', reqId);
+      setCheckoutToast({ message: `Checkout failed: ${itemsError.message}`, type: 'error' });
+      setCheckoutLoading(false);
+      return;
+    }
+
+    setActiveRequestId(reqId);
     setShowPayment(true);
     setCheckoutToast({
-      message: `Order ${result.requestId} submitted successfully! Contact admin to complete payment.`,
+      message: `Order ${shortUUID(reqId)} submitted! Contact admin to complete payment.`,
       type: 'success',
     });
     setCheckoutLoading(false);
@@ -232,7 +228,7 @@ export default function Home() {
 
   const getOrderSummaryText = () => {
     const itemsText = cart.map(item => item.title).join(', ');
-    return `Hello Yasin Store! My Request ID is ${activeRequestId}. Games: ${itemsText} (Total: ${cartTotal.toLocaleString()} IQD). Please confirm my order!`;
+    return `Hello Yasin Store! My Order ID is ${shortUUID(activeRequestId)} (${activeRequestId}). Games: ${itemsText} (Total: ${cartTotal.toLocaleString()} IQD). Please confirm my order!`;
   };
 
   const getWhatsAppLink = () => {
@@ -283,6 +279,15 @@ export default function Home() {
   // Dynamically extract unique genres from the catalog database
   const genres = ['All', ...Array.from(new Set(allGames.map(g => g.genre))).filter(Boolean)];
 
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)', color: 'var(--color-red)', flexDirection: 'column', gap: '16px' }}>
+        <Loader2 size={32} className="spin-animation" />
+        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>Loading Store...</span>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.page}>
       {/* Header */}
@@ -302,14 +307,6 @@ export default function Home() {
                 onClick={() => { setActiveTab('home'); setGenre('All'); setSearch(''); }}
               >
                 Home
-              </button>
-            </li>
-            <li>
-              <button 
-                className={`${styles.pill} ${activeTab === 'library' ? styles.pillActive : ''}`}
-                onClick={() => setActiveTab('library')}
-              >
-                Library
               </button>
             </li>
             <li>
@@ -340,6 +337,16 @@ export default function Home() {
             >
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
+
+            {/* Profile Button */}
+            <Link 
+              href="/profile" 
+              className={styles.actionBtn}
+              aria-label="Profile"
+              title="My Profile & Orders"
+            >
+              <User size={20} />
+            </Link>
 
             {/* Cart Button */}
             <div className={styles.cartBtnContainer}>
@@ -472,69 +479,7 @@ export default function Home() {
           </section>
         )}
 
-        {/* Tab 2: Library */}
-        {activeTab === 'library' && (
-          <section className={styles.catalogHeader}>
-            {libraryGames.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 0', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-lg)', backgroundColor: 'var(--bg-secondary)' }}>
-                <Gamepad2 size={48} style={{ color: 'var(--color-red)', marginBottom: '16px', opacity: 0.8 }} />
-                <h2 style={{ fontFamily: 'var(--font-heading)', marginBottom: '8px' }}>Your Library is Empty</h2>
-                <p style={{ color: 'var(--text-secondary)', maxWidth: '500px', margin: '0 auto 24px', fontSize: '0.95rem' }}>
-                  Once you select games, checkout, and send your Request ID to the admin, the admin will verify your payment and mark it as completed. Verified games will unlock here automatically!
-                </p>
-                <button className={styles.btn} onClick={() => setActiveTab('home')} style={{ backgroundColor: 'var(--color-red)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 'var(--radius-md)', fontWeight: 'bold', cursor: 'pointer' }}>
-                  Browse Catalog
-                </button>
-              </div>
-            ) : (
-              <div>
-                <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, marginBottom: '24px' }}>
-                  Your Collection ({libraryGames.length})
-                </h2>
-                <div className={styles.gamesGrid}>
-                  {libraryGames.map((game) => (
-                    <div key={game.id} className={styles.gameCard} style={{ cursor: 'default' }}>
-                      <div className={styles.cardImgWrapper}>
-                        <span className={styles.cardTag} style={{ backgroundColor: '#10b981' }}>Unlocked</span>
-                        <Image 
-                          src={game.poster}
-                          alt={game.title}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          className={styles.cardImg}
-                        />
-                      </div>
-                      <div className={styles.cardContent}>
-                        <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#10b981', fontWeight: 'bold' }}>Ready to Download</span>
-                        <h3 className={styles.cardTitle} style={{ marginTop: '4px' }}>{game.title}</h3>
-                        <p className={styles.cardDesc}>{game.description}</p>
-                        <button 
-                          className={styles.btn} 
-                          onClick={() => alert(`Retrieving license key for "${game.title}"...\nKey status: ACTIVE\nKey: YASN-${Math.random().toString(36).substr(2, 4).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`)}
-                          style={{ 
-                            marginTop: '12px', 
-                            width: '100%', 
-                            backgroundColor: '#10b981', 
-                            color: 'white', 
-                            border: 'none', 
-                            padding: '10px 0', 
-                            borderRadius: 'var(--radius-md)', 
-                            fontWeight: 'bold', 
-                            cursor: 'pointer' 
-                          }}
-                        >
-                          Get Key
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* Tab 3: About */}
+        {/* Tab 2: About */}
         {activeTab === 'about' && (
           <section className={styles.catalogHeader}>
             <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -705,8 +650,9 @@ export default function Home() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Request ID Badge */}
               <div style={{ textAlign: 'center', padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
-                <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 'bold', marginBottom: '8px' }}>Your Request ID</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: '900', fontFamily: 'var(--font-heading)', color: 'var(--color-red)', letterSpacing: '2px' }}>{activeRequestId}</div>
+                <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 'bold', marginBottom: '8px' }}>Your Order ID</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '900', fontFamily: 'var(--font-heading)', color: 'var(--color-red)', letterSpacing: '3px' }}>{shortUUID(activeRequestId)}</div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '6px', fontFamily: 'monospace', wordBreak: 'break-all' }}>{activeRequestId}</p>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '8px' }}>Send this ID to the admin via any channel below</p>
               </div>
 
@@ -934,10 +880,10 @@ export default function Home() {
             <span>YASIN <span className={styles.logoRed}>STORE</span></span>
           </div>
           <ul className={styles.footerLinks}>
-            <li><a href="#" className={styles.footerLink} onClick={(e) => { e.preventDefault(); setGenre('All'); }}>Store</a></li>
-            <li><a href="#" className={styles.footerLink} onClick={(e) => { e.preventDefault(); alert("Library is empty! Acquire some games first."); }}>Library</a></li>
-            <li><a href="#" className={styles.footerLink} onClick={(e) => { e.preventDefault(); alert("Yasin Store - A next-gen game library experience."); }}>About</a></li>
-            <li><a href="#" className={styles.footerLink} onClick={(e) => { e.preventDefault(); alert("Contact: support@yasinstore.com"); }}>Support</a></li>
+            <li><a href="#" className={styles.footerLink} onClick={(e) => { e.preventDefault(); setActiveTab('home'); }}>Store</a></li>
+            <li><Link href="/profile" className={styles.footerLink}>Profile</Link></li>
+            <li><a href="#" className={styles.footerLink} onClick={(e) => { e.preventDefault(); setActiveTab('about'); }}>About</a></li>
+            <li><a href="#" className={styles.footerLink} onClick={(e) => { e.preventDefault(); setActiveTab('support'); }}>Support</a></li>
           </ul>
           <p className={styles.footerCopyright}>
             &copy; {new Date().getFullYear()} Yasin Store. All Rights Reserved.

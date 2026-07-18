@@ -3,7 +3,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import styles from '../admin.module.css';
-import { supabase } from '../../../lib/supabase';
+import { getPlatformLabel, shortUUID } from '../../gamesData';
+import {
+  getRequests,
+  updateRequestStatus,
+  deleteRequest,
+  clearCompletedRequests,
+  verifyAdminPassword,
+} from '../actions';
 import { 
   ArrowLeft, 
   Trash2, 
@@ -13,9 +20,10 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
-  ArrowUpRight
+  ArrowUpRight,
+  Loader2,
+  Copy,
 } from 'lucide-react';
-import { getPlatformLabel } from '../../gamesData';
 
 interface RequestItem {
   product_name: string;
@@ -41,6 +49,7 @@ export default function RequestsPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('yasin-store-theme') as 'light' | 'dark' | null;
@@ -55,43 +64,29 @@ export default function RequestsPage() {
   }, []);
 
   const fetchRequests = async () => {
-    const { data: reqData, error: reqErr } = await supabase
-      .from('requests')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (reqErr || !reqData) {
-      console.error('Error fetching requests:', reqErr);
+    const { data, error } = await getRequests();
+    if (error) {
+      console.error('Error fetching requests:', error);
       return;
     }
-
-    const { data: itemsData, error: itemsErr } = await supabase
-      .from('request_items')
-      .select('*');
-
-    if (itemsErr) console.error('Error fetching items:', itemsErr);
-
-    const itemsByReq: Record<string, RequestItem[]> = {};
-    (itemsData || []).forEach((item: any) => {
-      if (!itemsByReq[item.request_id]) itemsByReq[item.request_id] = [];
-      itemsByReq[item.request_id].push({ product_name: item.product_name, price: item.price, asia_price: item.asia_price || 0, platform: item.platform || 1 });
-    });
-
-    setRequests(reqData.map((r: any) => ({
-      ...r,
-      items: itemsByReq[r.id] || []
-    })));
+    setRequests(data);
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === 'Rt92Lm#847pqX5@9012Zk') {
+    setLoginLoading(true);
+    setLoginError(false);
+
+    const { success } = await verifyAdminPassword(passwordInput);
+
+    if (success) {
       setIsAuthenticated(true);
       sessionStorage.setItem('yasin-store-admin-authed', 'true');
       setLoginError(false);
     } else {
       setLoginError(true);
     }
+    setLoginLoading(false);
   };
 
   const showToast = (msg: string) => {
@@ -101,30 +96,31 @@ export default function RequestsPage() {
 
   const toggleStatus = async (id: string, current: string) => {
     const next = current === 'PENDING' ? 'COMPLETED' : 'PENDING';
-    const { error } = await supabase.from('requests').update({ status: next }).eq('id', id);
-    if (error) { showToast(`Failed: ${error.message}`); return; }
-    showToast(`Request ${id} → ${next}`);
+    const { success, error } = await updateRequestStatus(id, next);
+    if (!success) { showToast(`Failed: ${error}`); return; }
+    showToast(`Request ${shortUUID(id)} → ${next}`);
     fetchRequests();
   };
 
   const handleDeleteRequest = async (id: string) => {
-    if (!confirm(`Delete request ${id}?`)) return;
-    await supabase.from('request_items').delete().eq('request_id', id);
-    const { error } = await supabase.from('requests').delete().eq('id', id);
-    if (error) { showToast(`Failed: ${error.message}`); return; }
-    showToast(`${id} deleted.`);
+    if (!confirm(`Delete request ${shortUUID(id)}?`)) return;
+    const { success, error } = await deleteRequest(id);
+    if (!success) { showToast(`Failed: ${error}`); return; }
+    showToast(`${shortUUID(id)} deleted.`);
     fetchRequests();
   };
 
-  const clearAllCompleted = async () => {
+  const handleClearAllCompleted = async () => {
     if (!confirm('Clear all completed requests?')) return;
-    const completedIds = requests.filter(r => r.status === 'COMPLETED').map(r => r.id);
-    for (const id of completedIds) {
-      await supabase.from('request_items').delete().eq('request_id', id);
-      await supabase.from('requests').delete().eq('id', id);
-    }
+    const { success, error } = await clearCompletedRequests();
+    if (!success) { showToast(`Failed: ${error}`); return; }
     showToast('Cleared completed.');
     fetchRequests();
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    showToast('Full UUID copied to clipboard');
   };
 
   const filtered = requests.filter(r => filter === 'All' ? true : r.status === filter);
@@ -142,9 +138,11 @@ export default function RequestsPage() {
           <h1 className={styles.lockTitle}>Admin Access</h1>
           <p className={styles.lockDesc}>Enter the cryptographic console key to access the Yasin Store catalog database.</p>
           <form onSubmit={handlePasswordSubmit} className={styles.lockForm}>
-            <input type="password" placeholder="Enter Password" className={styles.input} value={passwordInput} onChange={e => setPasswordInput(e.target.value)} required />
+            <input type="password" placeholder="Enter Password" className={styles.input} value={passwordInput} onChange={e => setPasswordInput(e.target.value)} required disabled={loginLoading} />
             {loginError && <span className={styles.lockError}>Invalid key password. Access Denied.</span>}
-            <button type="submit" className={styles.submitBtn}>Grant Access</button>
+            <button type="submit" className={styles.submitBtn} disabled={loginLoading}>
+              {loginLoading ? (<><Loader2 size={18} className="spin-animation" /> Verifying...</>) : 'Grant Access'}
+            </button>
           </form>
         </div>
       </div>
@@ -192,7 +190,7 @@ export default function RequestsPage() {
                 <button key={t} onClick={() => setFilter(t)} style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', backgroundColor: filter === t ? 'var(--color-red)' : 'var(--bg-secondary)', color: filter === t ? '#fff' : 'var(--text-primary)', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>{t === 'All' ? 'All' : t.charAt(0) + t.slice(1).toLowerCase()}</button>
               ))}
               {totalCompleted > 0 && (
-                <button onClick={clearAllCompleted} style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,46,77,0.2)', backgroundColor: 'rgba(255,46,77,0.05)', color: 'var(--color-red)', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>Clear Completed</button>
+                <button onClick={handleClearAllCompleted} style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,46,77,0.2)', backgroundColor: 'rgba(255,46,77,0.05)', color: 'var(--color-red)', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>Clear Completed</button>
               )}
             </div>
           </div>
@@ -209,7 +207,14 @@ export default function RequestsPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--text-primary)' }}>{req.id}</span>
+                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--text-primary)' }}>{shortUUID(req.id)}</span>
+                      <button
+                        onClick={() => copyToClipboard(req.id)}
+                        title={`Full ID: ${req.id}`}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px' }}
+                      >
+                        <Copy size={14} />
+                      </button>
                       <span style={{ padding: '4px 8px', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase', backgroundColor: req.status === 'COMPLETED' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: req.status === 'COMPLETED' ? '#10b981' : '#f59e0b', border: `1px solid ${req.status === 'COMPLETED' ? '#10b981' : '#f59e0b'}` }}>{req.status}</span>
                     </div>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '4px', display: 'block' }}>Submitted: {new Date(req.created_at).toLocaleString()}</span>

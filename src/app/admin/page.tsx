@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import styles from './admin.module.css';
-import { Product, DEFAULT_LOGO_POSTER, PLATFORM_LABELS, getPlatformLabel } from '../gamesData';
-import { getProducts, addProduct, deleteProduct } from './actions';
+import { Product, DEFAULT_LOGO_POSTER, PLATFORM_OPTIONS, getPlatformLabel, hasPlatformBit, togglePlatformBit } from '../gamesData';
+import { getProducts, addProduct, deleteProduct, verifyAdminPassword } from './actions';
 import { 
   ArrowLeft, 
   Plus, 
@@ -27,6 +27,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
 
   // Form States
   const [name, setName] = useState('');
@@ -34,7 +35,7 @@ export default function AdminPage() {
   const [price, setPrice] = useState('');
   const [posterFile, setPosterFile] = useState<string | null>(null);
   const [posterFileName, setPosterFileName] = useState('');
-  const [platform, setPlatform] = useState(1);
+  const [platform, setPlatform] = useState(1); // bitmask — default PC
 
   // Admin Contact Details state
   const [whatsapp, setWhatsapp] = useState('+964 770 000 0000');
@@ -88,17 +89,21 @@ export default function AdminPage() {
     }
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const correctPassword = 'Rt92Lm#847pqX5@9012Zk';
+    setLoginLoading(true);
+    setLoginError(false);
 
-    if (passwordInput === correctPassword) {
+    const { success } = await verifyAdminPassword(passwordInput);
+
+    if (success) {
       setIsAuthenticated(true);
       sessionStorage.setItem('yasin-store-admin-authed', 'true');
       setLoginError(false);
     } else {
       setLoginError(true);
     }
+    setLoginLoading(false);
   };
 
   const showToast = (message: string) => {
@@ -122,11 +127,20 @@ export default function AdminPage() {
     reader.readAsDataURL(file);
   };
 
+  const handleTogglePlatform = (bit: number) => {
+    setPlatform(prev => togglePlatformBit(prev, bit));
+  };
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name || !price) {
       alert('Please fill in name and price.');
+      return;
+    }
+
+    if (platform === 0) {
+      alert('Please select at least one platform.');
       return;
     }
 
@@ -212,12 +226,17 @@ export default function AdminPage() {
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
               required
+              disabled={loginLoading}
             />
             {loginError && (
               <span className={styles.lockError}>Invalid key password. Access Denied.</span>
             )}
-            <button type="submit" className={styles.submitBtn}>
-              Grant Access
+            <button type="submit" className={styles.submitBtn} disabled={loginLoading}>
+              {loginLoading ? (
+                <><Loader2 size={18} className="spin-animation" /> Verifying...</>
+              ) : (
+                'Grant Access'
+              )}
             </button>
           </form>
         </div>
@@ -289,17 +308,22 @@ export default function AdminPage() {
               />
             </div>
 
+            {/* Platform Multi-Select Icons */}
             <div className={styles.formGroup}>
-              <label className={styles.label}>Platform *</label>
-              <select
-                className={styles.input}
-                value={platform}
-                onChange={(e) => setPlatform(Number(e.target.value))}
-              >
-                {Object.entries(PLATFORM_LABELS).map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
+              <label className={styles.label}>Platforms * <span style={{ fontWeight: 400, textTransform: 'none', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>(click to toggle)</span></label>
+              <div className={styles.platformsGrid}>
+                {PLATFORM_OPTIONS.map((p) => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    className={`${styles.platformBtn} ${hasPlatformBit(platform, p.value) ? styles.platformBtnActive : ''}`}
+                    onClick={() => handleTogglePlatform(p.value)}
+                  >
+                    <span style={{ fontSize: '1.2rem' }}>{p.icon}</span>
+                    {p.label}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             <div className={styles.formGroup}>

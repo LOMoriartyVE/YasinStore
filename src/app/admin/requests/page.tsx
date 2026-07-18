@@ -15,17 +15,20 @@ import {
   AlertTriangle,
   ArrowUpRight
 } from 'lucide-react';
+import { getPlatformLabel } from '../../gamesData';
 
 interface RequestItem {
   product_name: string;
   price: number;
+  asia_price: number;
+  platform: number;
 }
 
 interface GameRequest {
   id: string;
   created_at: string;
   status: string;
-  total_amounr: number;
+  total_amount: number;
   items: RequestItem[];
 }
 
@@ -53,7 +56,7 @@ export default function RequestsPage() {
 
   const fetchRequests = async () => {
     const { data: reqData, error: reqErr } = await supabase
-      .from('Requests')
+      .from('requests')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -71,7 +74,7 @@ export default function RequestsPage() {
     const itemsByReq: Record<string, RequestItem[]> = {};
     (itemsData || []).forEach((item: any) => {
       if (!itemsByReq[item.request_id]) itemsByReq[item.request_id] = [];
-      itemsByReq[item.request_id].push({ product_name: item.product_name, price: item.price });
+      itemsByReq[item.request_id].push({ product_name: item.product_name, price: item.price, asia_price: item.asia_price || 0, platform: item.platform || 1 });
     });
 
     setRequests(reqData.map((r: any) => ({
@@ -98,7 +101,7 @@ export default function RequestsPage() {
 
   const toggleStatus = async (id: string, current: string) => {
     const next = current === 'PENDING' ? 'COMPLETED' : 'PENDING';
-    const { error } = await supabase.from('Requests').update({ status: next }).eq('id', id);
+    const { error } = await supabase.from('requests').update({ status: next }).eq('id', id);
     if (error) { showToast(`Failed: ${error.message}`); return; }
     showToast(`Request ${id} → ${next}`);
     fetchRequests();
@@ -107,7 +110,7 @@ export default function RequestsPage() {
   const handleDeleteRequest = async (id: string) => {
     if (!confirm(`Delete request ${id}?`)) return;
     await supabase.from('request_items').delete().eq('request_id', id);
-    const { error } = await supabase.from('Requests').delete().eq('id', id);
+    const { error } = await supabase.from('requests').delete().eq('id', id);
     if (error) { showToast(`Failed: ${error.message}`); return; }
     showToast(`${id} deleted.`);
     fetchRequests();
@@ -118,7 +121,7 @@ export default function RequestsPage() {
     const completedIds = requests.filter(r => r.status === 'COMPLETED').map(r => r.id);
     for (const id of completedIds) {
       await supabase.from('request_items').delete().eq('request_id', id);
-      await supabase.from('Requests').delete().eq('id', id);
+      await supabase.from('requests').delete().eq('id', id);
     }
     showToast('Cleared completed.');
     fetchRequests();
@@ -127,7 +130,7 @@ export default function RequestsPage() {
   const filtered = requests.filter(r => filter === 'All' ? true : r.status === filter);
   const totalPending = requests.filter(r => r.status === 'PENDING').length;
   const totalCompleted = requests.filter(r => r.status === 'COMPLETED').length;
-  const pendingVolume = requests.filter(r => r.status === 'PENDING').reduce((s, r) => s + (r.total_amounr || 0), 0);
+  const pendingVolume = requests.filter(r => r.status === 'PENDING').reduce((s, r) => s + (r.total_amount || 0), 0);
 
   if (!isAuthenticated) {
     return (
@@ -218,15 +221,23 @@ export default function RequestsPage() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px dashed var(--border-color)', borderBottom: '1px dashed var(--border-color)', padding: '12px 0' }}>
                   {req.items.map((item, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                      <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}><ArrowUpRight size={14} style={{ opacity: 0.6 }} /> {item.product_name}</span>
-                      <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{item.price.toLocaleString()} IQD</span>
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <ArrowUpRight size={14} style={{ opacity: 0.6 }} /> {item.product_name}
+                        <span style={{ fontSize: '0.7rem', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(255,46,77,0.08)', color: 'var(--text-tertiary)', border: '1px solid rgba(255,46,77,0.15)' }}>{getPlatformLabel(item.platform)}</span>
+                      </span>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{item.price.toLocaleString()} IQD</span>
+                        {item.asia_price > 0 && (
+                          <span style={{ fontWeight: '500', color: '#f59e0b', fontSize: '0.8rem' }}>Asia: {item.asia_price.toLocaleString()} IQD</span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>Total:</span>
-                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-red)' }}>{(req.total_amounr || 0).toLocaleString()} IQD</span>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-red)' }}>{(req.total_amount || 0).toLocaleString()} IQD</span>
                 </div>
               </div>
             ))}

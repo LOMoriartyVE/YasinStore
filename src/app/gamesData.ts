@@ -4,17 +4,34 @@ export interface Game {
   genre: string;
   description: string;
   price: number;
+  asiaPrice: number | null;
   poster: string;
   released: string;
   platforms: string[];
+  platform: number;
 }
 
-// Supabase products table shape
+// Supabase products table shape (matches exact column names)
 export interface Product {
   name: string;
-  price: number;
+  Price: number;
   description: string | null;
   image_url: string | null;
+  platform: number;
+}
+
+// Platform mapping: int2 value → display label
+export const PLATFORM_LABELS: Record<number, string> = {
+  1: 'PC',
+  2: 'PlayStation',
+  3: 'Xbox',
+  4: 'Nintendo',
+  5: 'Mobile',
+  6: 'Multi-Platform',
+};
+
+export function getPlatformLabel(platform: number): string {
+  return PLATFORM_LABELS[platform] || 'Unknown';
 }
 
 // Convert a Supabase product row to a Game for the storefront UI
@@ -24,10 +41,12 @@ export function productToGame(product: Product): Game {
     title: product.name,
     genre: 'Uncategorized',
     description: product.description || 'No description provided.',
-    price: product.price,
+    price: product.Price,
+    asiaPrice: null,
     poster: product.image_url || DEFAULT_LOGO_POSTER,
     released: '',
-    platforms: ['PC']
+    platforms: [getPlatformLabel(product.platform)],
+    platform: product.platform,
   };
 }
 

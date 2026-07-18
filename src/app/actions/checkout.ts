@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabase';
 export interface CheckoutItem {
   title: string;
   price: number;
+  asiaPrice: number | null;
+  platform: number;
 }
 
 export async function submitCheckout(
@@ -17,11 +19,11 @@ export async function submitCheckout(
 
   const reqId = 'REQ-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-  const { error: reqError } = await supabase.from('Requests').insert([
+  const { error: reqError } = await supabase.from('requests').insert([
     {
       id: reqId,
       status: 'PENDING',
-      total_amounr: total,
+      total_amount: total,
     },
   ]);
 
@@ -33,12 +35,14 @@ export async function submitCheckout(
     request_id: reqId,
     product_name: item.title,
     price: item.price,
+    asia_price: item.asiaPrice || 0,
+    platform: item.platform,
   }));
 
   const { error: itemsError } = await supabase.from('request_items').insert(requestItems);
 
   if (itemsError) {
-    await supabase.from('Requests').delete().eq('id', reqId);
+    await supabase.from('requests').delete().eq('id', reqId);
     return { success: false, error: itemsError.message };
   }
 

@@ -16,7 +16,7 @@ import {
   ArrowRight,
   Loader2
 } from 'lucide-react';
-import { Game, productToGame, DEFAULT_LOGO_POSTER } from './gamesData';
+import { Game, productToGame, DEFAULT_LOGO_POSTER, getPlatformLabel } from './gamesData';
 import { supabase } from '../lib/supabase';
 import { submitCheckout } from './actions/checkout';
 
@@ -136,9 +136,11 @@ export default function Home() {
                     genre: 'Unlocked Game',
                     description: 'Purchased game key ready for activation.',
                     price: game.price,
+                    asiaPrice: null,
                     released: 'N/A',
                     poster: '/logo.png',
-                    platforms: ['PC']
+                    platforms: ['PC'],
+                    platform: 1,
                   });
                 }
               }
@@ -193,7 +195,7 @@ export default function Home() {
     setCheckoutToast({ message: 'Submitting your order to the database...', type: 'loading' });
 
     const result = await submitCheckout(
-      cart.map((item) => ({ title: item.title, price: item.price })),
+      cart.map((item) => ({ title: item.title, price: item.price, asiaPrice: item.asiaPrice, platform: item.platform })),
       cartTotal
     );
 
@@ -447,7 +449,12 @@ export default function Home() {
                       <p className={styles.cardDesc}>{game.description}</p>
 
                       <div className={styles.cardFooter}>
-                        <span className={styles.price}>{game.price.toLocaleString()} IQD</span>
+                        <div>
+                          <span className={styles.price}>{game.price.toLocaleString()} IQD</span>
+                          {game.asiaPrice != null && game.asiaPrice > 0 && (
+                            <span style={{ display: 'block', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>Asia: {game.asiaPrice.toLocaleString()} IQD</span>
+                          )}
+                        </div>
                         <button 
                           className={styles.cardBtn}
                           onClick={(e) => addToCart(game, e)}
@@ -639,21 +646,21 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Payment Details Card */}
+              {/* Payment Methods Card - Icons Only */}
               <div style={{ padding: '24px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
                 <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', color: 'var(--color-red)', marginBottom: '16px' }}>💳 Accepted Payment Networks</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.95rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Zain Cash:</span>
-                    <strong style={{ color: 'var(--text-primary)' }}>{contactInfo.zainCash}</strong>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', padding: '12px 0' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>💳</div>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Zain Cash</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Asiacell Transfer:</span>
-                    <strong style={{ color: 'var(--text-primary)' }}>{contactInfo.asiacell}</strong>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>📱</div>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Asiacell</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '4px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>QI Card Service:</span>
-                    <strong style={{ color: 'var(--text-primary)' }}>{contactInfo.qiCard}</strong>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>🏦</div>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>QI Card</span>
                   </div>
                 </div>
               </div>
@@ -789,6 +796,9 @@ export default function Home() {
                     <h4 className={styles.cartItemTitle}>{item.title}</h4>
                     <span className={styles.cartItemGenre}>{item.genre}</span>
                     <span className={styles.cartItemPrice}>{item.price.toLocaleString()} IQD</span>
+                    {item.asiaPrice != null && item.asiaPrice > 0 && (
+                      <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600 }}>Asia: {item.asiaPrice.toLocaleString()} IQD</span>
+                    )}
                   </div>
                   <button 
                     className={styles.removeBtn}
@@ -894,6 +904,9 @@ export default function Home() {
                   <div className={styles.modalPrice}>
                     <span className={styles.modalPriceLabel}>Instant Access</span>
                     <span className={styles.modalPriceVal}>{selectedGame.price.toLocaleString()} IQD</span>
+                    {selectedGame.asiaPrice != null && selectedGame.asiaPrice > 0 && (
+                      <span style={{ display: 'block', fontSize: '0.85rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>Asia Price: {selectedGame.asiaPrice.toLocaleString()} IQD</span>
+                    )}
                   </div>
                   <button 
                     className={`${styles.btn} ${styles.btnPrimary} ${styles.modalBtn}`}

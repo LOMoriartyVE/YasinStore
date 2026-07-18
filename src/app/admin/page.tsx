@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import styles from './admin.module.css';
-import { Product, DEFAULT_LOGO_POSTER } from '../gamesData';
+import { Product, DEFAULT_LOGO_POSTER, PLATFORM_LABELS, getPlatformLabel } from '../gamesData';
 import { getProducts, addProduct, deleteProduct } from './actions';
 import { 
   ArrowLeft, 
@@ -34,6 +34,7 @@ export default function AdminPage() {
   const [price, setPrice] = useState('');
   const [posterFile, setPosterFile] = useState<string | null>(null);
   const [posterFileName, setPosterFileName] = useState('');
+  const [platform, setPlatform] = useState(1);
 
   // Admin Contact Details state
   const [whatsapp, setWhatsapp] = useState('+964 770 000 0000');
@@ -133,9 +134,10 @@ export default function AdminPage() {
 
     const newProduct: Product = {
       name,
-      price: parseFloat(parseFloat(price).toFixed(2)),
+      Price: parseFloat(parseFloat(price).toFixed(2)),
       description: description || null,
-      image_url: posterFile || null
+      image_url: posterFile || null,
+      platform,
     };
 
     const { success, error } = await addProduct(newProduct);
@@ -153,6 +155,7 @@ export default function AdminPage() {
     setPrice('');
     setPosterFile(null);
     setPosterFileName('');
+    setPlatform(1);
 
     showToast(`"${name}" added to database!`);
     setIsSubmitting(false);
@@ -284,6 +287,19 @@ export default function AdminPage() {
                 onChange={(e) => setPrice(e.target.value)}
                 required
               />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Platform *</label>
+              <select
+                className={styles.input}
+                value={platform}
+                onChange={(e) => setPlatform(Number(e.target.value))}
+              >
+                {Object.entries(PLATFORM_LABELS).map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
             </div>
 
             <div className={styles.formGroup}>
@@ -439,7 +455,8 @@ export default function AdminPage() {
                   <div className={styles.itemInfo}>
                     <h3 className={styles.itemTitle}>{product.name}</h3>
                     <div className={styles.itemMeta}>
-                      <span className={styles.itemPrice}>{product.price.toLocaleString()} IQD</span>
+                      <span className={styles.itemPrice}>{product.Price.toLocaleString()} IQD</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginLeft: '8px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid rgba(255,46,77,0.15)' }}>{getPlatformLabel(product.platform)}</span>
                     </div>
                   </div>
                   <button 

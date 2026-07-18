@@ -46,7 +46,17 @@ function LoginContent() {
     });
 
     if (authError) {
-      setError(authError.message);
+      const msg = authError.message.toLowerCase();
+      if (
+        msg.includes('invalid') ||
+        msg.includes('credentials') ||
+        msg.includes('grant') ||
+        authError.status === 400
+      ) {
+        setError('Incorrect email or password.');
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
       setLoading(false);
       return;
     }

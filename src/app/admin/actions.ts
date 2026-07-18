@@ -205,3 +205,37 @@ export async function deleteUserOrder(
   if (error) return { success: false, error: error.message };
   return { success: true, error: null };
 }
+
+export async function deleteUserAccount(
+  userId: string,
+  confirmedEmail: string
+): Promise<{ success: boolean; error: string | null }> {
+  const { data: userData, error: getError } = await supabaseAdmin.auth.admin.getUserById(userId);
+
+  if (getError || !userData.user) {
+    return { success: false, error: getError?.message || 'User not found' };
+  }
+
+  if (userData.user.email !== confirmedEmail) {
+    return { success: false, error: 'Confirmed email does not match account email.' };
+  }
+
+  const { data: requests } = await supabaseAdmin
+    .from('requests')
+    .select('id')
+    .eq('user_id', userId);
+
+  if (requests && requests.length > 0) {
+    const ids = requests.map((r: any) => r.id);
+    await supabaseAdmin.from('request_items').delete().in('request_id', ids);
+    await supabaseAdmin.from('requests').delete().in('id', ids);
+  }
+
+  const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+  if (deleteError) {
+    return { success: false, error: deleteError.message };
+  }
+
+  return { success: true, error: null };
+}

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import styles from '../auth.module.css';
 import { supabase } from '../../lib/supabase';
 import { shortUUID, getPlatformLabel } from '../gamesData';
-import { getUserOrders, deleteUserOrder } from '../admin/actions';
+import { getUserOrders, deleteUserOrder, deleteUserAccount } from '../admin/actions';
 import {
   ArrowLeft,
   Loader2,
@@ -38,6 +38,12 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [toast, setToast] = useState('');
+  
+  // Delete account state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [confirmEmailInput, setConfirmEmailInput] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('yasin-store-theme') as 'light' | 'dark' | null;
@@ -82,6 +88,31 @@ export default function ProfilePage() {
 
     showToast(`Order ${shortUUID(orderId)} deleted.`);
     fetchOrders(user.id);
+  };
+
+  const handleDeleteAccountSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.id || !user?.email) return;
+
+    if (confirmEmailInput !== user.email) {
+      setDeleteError('Confirmed email does not match account email.');
+      return;
+    }
+
+    setDeleteLoading(true);
+    setDeleteError('');
+
+    const { success, error } = await deleteUserAccount(user.id, confirmEmailInput);
+
+    if (!success) {
+      setDeleteError(error || 'Failed to delete account.');
+      setDeleteLoading(false);
+      return;
+    }
+
+    await supabase.auth.signOut();
+    setShowDeleteModal(false);
+    router.push('/signup');
   };
 
   const handleLogout = async () => {
@@ -212,7 +243,92 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+
+        {/* Danger Zone */}
+        <div style={{ marginTop: '32px', padding: '24px', backgroundColor: 'rgba(255,46,77,0.04)', border: '1px solid rgba(255,46,77,0.12)', borderRadius: 'var(--radius-lg)' }}>
+          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', color: 'var(--color-red)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            ⚠️ Danger Zone
+          </h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '16px', lineHeight: '1.5' }}>
+            Permanently delete your account and all associated order history. This action cannot be undone.
+          </p>
+          <button 
+            onClick={() => setShowDeleteModal(true)} 
+            className={styles.profileBtn}
+            style={{ backgroundColor: 'var(--color-red)', color: 'white', border: 'none', cursor: 'pointer' }}
+          >
+            Delete Account
+          </button>
+        </div>
       </main>
+
+      {/* Delete Account Modal Overlay */}
+      {showDeleteModal && (
+        <div 
+          className={styles.modalOverlay} 
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.65)' }}
+          onClick={() => {
+            setShowDeleteModal(false);
+            setConfirmEmailInput('');
+            setDeleteError('');
+          }}
+        >
+          <div 
+            className={styles.modal} 
+            style={{ maxWidth: '450px', width: '90%', padding: '28px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', color: 'var(--color-red)', marginBottom: '12px' }}>
+              Confirm Account Deletion
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '20px', lineHeight: '1.6' }}>
+              Are you absolutely sure? All your orders and account data will be permanently removed. To confirm, please type your email address <strong>{user?.email}</strong> below:
+            </p>
+            <form onSubmit={handleDeleteAccountSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <input
+                type="email"
+                placeholder={user?.email || 'your@email.com'}
+                className={styles.authInput}
+                value={confirmEmailInput}
+                onChange={(e) => setConfirmEmailInput(e.target.value)}
+                required
+                disabled={deleteLoading}
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '12px', borderRadius: 'var(--radius-md)', width: '100%', fontSize: '0.95rem' }}
+              />
+              
+              {deleteError && (
+                <div style={{ color: 'var(--color-red)', fontSize: '0.85rem', fontWeight: 600 }}>
+                  {deleteError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  className={styles.profileBtn}
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setConfirmEmailInput('');
+                    setDeleteError('');
+                  }}
+                  disabled={deleteLoading}
+                  style={{ border: '1px solid var(--border-color)', background: 'none', color: 'var(--text-primary)', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={styles.profileBtn}
+                  disabled={deleteLoading}
+                  style={{ backgroundColor: 'var(--color-red)', color: 'white', border: 'none', cursor: 'pointer' }}
+                >
+                  {deleteLoading ? 'Deleting...' : 'Permanently Delete'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (

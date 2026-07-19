@@ -37,6 +37,10 @@ export default function AdminPage() {
   const [posterFile, setPosterFile] = useState<string | null>(null);
   const [posterFileName, setPosterFileName] = useState('');
   const [platform, setPlatform] = useState(1); // bitmask — default PC
+  const [glowColor, setGlowColor] = useState('');
+  const [customGraphic, setCustomGraphic] = useState('');
+  const [tag, setTag] = useState('');
+  const [badgeText, setBadgeText] = useState('');
 
   // Admin Contact Details state
   const [whatsapp, setWhatsapp] = useState('+964 770 000 0000');
@@ -133,16 +137,55 @@ export default function AdminPage() {
     }, 3000);
   };
 
-  // Convert uploaded image file to Base64 data url
+  // Convert uploaded image file to WebP format (Base64 data URL) client-side
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setPosterFileName(file.name);
+    // Change filename extension to .webp for UI display
+    const dotIndex = file.name.lastIndexOf('.');
+    const cleanName = dotIndex !== -1 ? file.name.substring(0, dotIndex) : file.name;
+    setPosterFileName(cleanName + '.webp');
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setPosterFile(reader.result as string);
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Convert to webp with 0.85 quality
+          const webpBase64 = canvas.toDataURL('image/webp', 0.85);
+          setPosterFile(webpBase64);
+        } else {
+          setPosterFile(reader.result as string);
+        }
+      };
+      img.onerror = () => {
+        setPosterFile(reader.result as string);
+      };
+      img.src = reader.result as string;
     };
     reader.readAsDataURL(file);
   };
@@ -173,6 +216,10 @@ export default function AdminPage() {
       description: description || null,
       image_url: posterFile || null,
       platform,
+      glow_color: glowColor || null,
+      custom_graphic: customGraphic || null,
+      tag: tag || null,
+      badge_text: badgeText || null,
     };
 
     const { success, error } = await addProduct(newProduct);
@@ -192,6 +239,10 @@ export default function AdminPage() {
     setPosterFile(null);
     setPosterFileName('');
     setPlatform(1);
+    setGlowColor('');
+    setCustomGraphic('');
+    setTag('');
+    setBadgeText('');
 
     showToast(`"${name}" added to database!`);
     setIsSubmitting(false);
@@ -429,6 +480,62 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Glow Color Selector */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Glow Color Theme</label>
+              <select 
+                className={styles.input} 
+                value={glowColor} 
+                onChange={(e) => setGlowColor(e.target.value)}
+              >
+                <option value="">None (Standard Outline)</option>
+                <option value="pink">Neon Pink</option>
+                <option value="cyan">Neon Cyan</option>
+                <option value="amber">Neon Amber</option>
+                <option value="purple">Neon Purple</option>
+              </select>
+            </div>
+
+            {/* Custom Graphic Selector */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Custom Card Artwork / Graphic (Backdrop Canvas)</label>
+              <select 
+                className={styles.input} 
+                value={customGraphic} 
+                onChange={(e) => setCustomGraphic(e.target.value)}
+              >
+                <option value="">None (Uses Cover Photo Above)</option>
+                <option value="smiley">Smiley Decal Canvas</option>
+                <option value="house">House Vector Canvas</option>
+                <option value="gamepad">Gamepad Neon Glow Canvas</option>
+                <option value="sword">Sword Cyberpunk Canvas</option>
+              </select>
+            </div>
+
+            {/* Custom Tag Field */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Badge Tag Text</label>
+              <input 
+                type="text" 
+                placeholder="e.g. HOT RELEASE, PC, PROMO (optional)" 
+                className={styles.input}
+                value={tag}
+                onChange={(e) => setTag(e.target.value)}
+              />
+            </div>
+
+            {/* Custom Badge/Publisher Text Field */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Card Center Subtitle / Badge Publisher</label>
+              <input 
+                type="text" 
+                placeholder="e.g. TRT STORE, EA, UBISOFT (optional)" 
+                className={styles.input}
+                value={badgeText}
+                onChange={(e) => setBadgeText(e.target.value)}
+              />
             </div>
 
             <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>

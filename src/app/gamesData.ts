@@ -9,6 +9,10 @@ export interface Game {
   released: string;
   platforms: string[];
   platform: number;
+  glowColor?: string | null;
+  customGraphic?: string | null;
+  tag?: string | null;
+  badgeText?: string | null;
 }
 
 // Supabase products table shape (matches exact column names)
@@ -19,6 +23,10 @@ export interface Product {
   description: string | null;
   image_url: string | null;
   platform: number; // bitmask — see PLATFORM_OPTIONS
+  glow_color?: string | null;
+  custom_graphic?: string | null;
+  tag?: string | null;
+  badge_text?: string | null;
 }
 
 // Platform bitmask options — each is a power of 2
@@ -66,6 +74,10 @@ export function productToGame(product: Product): Game {
     released: '',
     platforms: getPlatformLabels(product.platform),
     platform: product.platform,
+    glowColor: product.glow_color || null,
+    customGraphic: product.custom_graphic || null,
+    tag: product.tag || null,
+    badgeText: product.badge_text || null,
   };
 }
 

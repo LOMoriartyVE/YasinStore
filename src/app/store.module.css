@@ -1023,3 +1023,280 @@
   color: var(--text-tertiary);
   margin-top: 8px;
 }
+
+/* Premium Neon Hero Section styling */
+.premiumHeroSection {
+  padding-top: 24px;
+  padding-bottom: 40px;
+}
+
+.premiumHero {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: linear-gradient(135deg, #0d091a 0%, #150f28 50%, #0c0817 100%);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  box-shadow: var(--shadow-lg), 0 10px 30px rgba(0, 0, 0, 0.5);
+  padding: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+@media (max-width: 1024px) {
+  .premiumHero {
+    flex-direction: column;
+    padding: 32px;
+  }
+}
+
+.heroGlowLeft {
+  position: absolute;
+  top: -160px;
+  left: -160px;
+  width: 384px;
+  height: 384px;
+  background-color: var(--color-purple);
+  opacity: 0.2;
+  filter: blur(80px);
+  border-radius: var(--radius-full);
+  pointer-events: none;
+}
+
+.heroGlowRight {
+  position: absolute;
+  bottom: -160px;
+  right: -160px;
+  width: 384px;
+  height: 384px;
+  background-color: #ec4899;
+  opacity: 0.15;
+  filter: blur(80px);
+  border-radius: var(--radius-full);
+  pointer-events: none;
+}
+
+.heroGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 32px;
+  align-items: center;
+  width: 100%;
+  position: relative;
+  z-index: 10;
+}
+
+@media (max-width: 1024px) {
+  .heroGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.heroLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background-color: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #c084fc;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: var(--radius-full);
+  align-self: flex-start;
+}
+
+.heroTitle {
+  font-family: var(--font-heading);
+  font-size: 3rem;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.heroTitleHighlight {
+  background: linear-gradient(90deg, #c084fc 0%, #ec4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (max-width: 640px) {
+  .heroTitle {
+    font-size: 2.25rem;
+  }
+}
+
+.heroDesc {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 540px;
+}
+
+.heroButtons {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.heroRight {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 320px;
+}
+
+@media (max-width: 1024px) {
+  .heroRight {
+    display: none;
+  }
+}
+
+.showcaseCardMinecraft {
+  position: relative;
+  width: 224px;
+  height: 288px;
+  border-radius: var(--radius-lg);
+  background-color: #0d091a;
+  border: 1px solid rgba(236, 72, 153, 0.3);
+  box-shadow: 0 0 20px rgba(236, 72, 153, 0.2);
+  transform: rotate(-8deg);
+  transition: all var(--transition-slow);
+  padding: 16px;
+  z-index: 20;
+  cursor: pointer;
+}
+
+.showcaseCardMinecraft:hover {
+  transform: rotate(0deg) scale(1.05);
+  border-color: #ec4899;
+}
+
+.showcaseCardGta {
+  position: absolute;
+  width: 208px;
+  height: 256px;
+  border-radius: var(--radius-lg);
+  background-color: #0d091a;
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  transform: rotate(8deg) translate(80px, -16px);
+  transition: all var(--transition-slow);
+  padding: 12px;
+  z-index: 10;
+  opacity: 0.65;
+  cursor: pointer;
+}
+
+.showcaseCardGta:hover {
+  opacity: 1;
+  transform: rotate(0deg) translate(64px, -8px) scale(1.05);
+  border-color: #a855f7;
+}
+
+.showcaseCardImgWrapper {
+  height: 160px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(168, 85, 247, 0.15);
+}
+
+.showcaseCardImgWrapperSmall {
+  height: 128px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(168, 85, 247, 0.15);
+}
+
+.showcaseCardInfo {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.showcaseCardSub {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.showcaseCardTitle {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.showcaseCardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.showcaseCardPrice {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.showcaseCardBadge {
+  font-size: 0.65rem;
+  background-color: rgba(236, 72, 153, 0.1);
+  color: #f472b6;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Glowing Card Border Themes */
+.cardPink {
+  border-color: rgba(236, 72, 153, 0.25) !important;
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.08) !important;
+}
+.cardPink:hover {
+  border-color: #ec4899 !important;
+  box-shadow: var(--shadow-lg), 0 0 20px rgba(236, 72, 153, 0.25) !important;
+}
+
+.cardCyan {
+  border-color: rgba(6, 182, 212, 0.25) !important;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.08) !important;
+}
+.cardCyan:hover {
+  border-color: #06b6d4 !important;
+  box-shadow: var(--shadow-lg), 0 0 20px rgba(6, 182, 212, 0.25) !important;
+}
+
+.cardAmber {
+  border-color: rgba(245, 158, 11, 0.25) !important;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.08) !important;
+}
+.cardAmber:hover {
+  border-color: #f59e0b !important;
+  box-shadow: var(--shadow-lg), 0 0 20px rgba(245, 158, 11, 0.25) !important;
+}
+
+.cardPurple {
+  border-color: rgba(168, 85, 247, 0.25) !important;
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.08) !important;
+}
+.cardPurple:hover {
+  border-color: #a855f7 !important;
+  box-shadow: var(--shadow-lg), 0 0 20px rgba(168, 85, 247, 0.25) !important;
+}

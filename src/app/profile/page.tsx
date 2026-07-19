@@ -230,7 +230,12 @@ export default function ProfilePage() {
                           🎮 {item.product_name}
                           <span style={{ fontSize: '0.7rem', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(255,46,77,0.08)', color: 'var(--text-tertiary)', border: '1px solid rgba(255,46,77,0.15)' }}>{getPlatformLabel(item.platform)}</span>
                         </span>
-                        <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{item.price.toLocaleString()} IQD</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                          <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{item.price.toLocaleString()} IQD</span>
+                          {item.asia_price ? (
+                            <span style={{ fontSize: '0.75rem', color: '#f59e0b' }}>Asia: {item.asia_price.toLocaleString()} IQD</span>
+                          ) : null}
+                        </div>
                       </div>
                     ))}
                   </div>

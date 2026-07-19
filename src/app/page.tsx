@@ -14,7 +14,11 @@ import {
   Trash2, 
   CheckCircle2, 
   ArrowRight,
-  Loader2
+  Loader2,
+  CloudLightning,
+  Sparkles,
+  ChevronRight,
+  Gamepad
 } from 'lucide-react';
 import { Game, productToGame, DEFAULT_LOGO_POSTER, getPlatformLabel, shortUUID } from './gamesData';
 import { supabase } from '../lib/supabase';
@@ -22,6 +26,133 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { User } from 'lucide-react';
 import { getStoreConfig } from './admin/actions';
+
+// GraphicRenderer to render custom procedural card vectors
+interface GraphicRendererProps {
+  type: string | null | undefined;
+  badgeText: string | null | undefined;
+  glowColor: string | null | undefined;
+}
+
+function GraphicRenderer({ type, badgeText, glowColor }: GraphicRendererProps) {
+  const getGlowColor = () => {
+    switch (glowColor) {
+      case 'pink': return 'rgba(236, 72, 153, 0.4)';
+      case 'cyan': return 'rgba(6, 182, 212, 0.4)';
+      case 'amber': return 'rgba(245, 158, 11, 0.4)';
+      default: return 'rgba(168, 85, 247, 0.4)';
+    }
+  };
+
+  const containerStyle: React.CSSProperties = {
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    userSelect: 'none',
+  };
+
+  const glowStyle: React.CSSProperties = {
+    position: 'absolute',
+    width: '120px',
+    height: '120px',
+    borderRadius: '50%',
+    filter: 'blur(30px)',
+    opacity: 0.3,
+    backgroundColor: getGlowColor(),
+    zIndex: 1,
+  };
+
+  const badgeStyle: React.CSSProperties = {
+    position: 'absolute',
+    bottom: '12px',
+    color: '#ffffff',
+    fontFamily: 'var(--font-heading), monospace',
+    fontWeight: 900,
+    fontSize: '10px',
+    letterSpacing: '2px',
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    zIndex: 10,
+    textShadow: '0 2px 4px rgba(0,0,0,0.8)',
+  };
+
+  if (type === 'smiley') {
+    return (
+      <div style={{ ...containerStyle, backgroundColor: '#09080d' }}>
+        <div style={glowStyle} />
+        <div style={{ position: 'relative', width: '90px', height: '90px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '50px', marginBottom: '10px', padding: '0 2px' }}>
+            <span style={{ color: '#ef4444', fontWeight: 950, fontSize: '20px', lineHeight: 1 }}>+</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: '8px', height: '8px', backgroundColor: '#ef4444', borderRadius: '50%' }} />
+              <div style={{ width: '8px', height: '8px', backgroundColor: '#ef4444', borderRadius: '50%', transform: 'translateX(5px)' }} />
+            </div>
+          </div>
+          <div style={{ width: '50px', height: '16px', borderBottom: '3px solid #ef4444', borderRadius: '0 0 25px 25px' }} />
+        </div>
+        <div style={badgeStyle}>{badgeText || 'YASIN STORE'}</div>
+      </div>
+    );
+  }
+
+  if (type === 'house') {
+    return (
+      <div style={{ ...containerStyle, backgroundColor: '#13111c' }}>
+        <div style={glowStyle} />
+        <div style={{ position: 'relative', width: '100px', height: '100px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
+          <svg style={{ width: '70px', height: '70px', filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.5))' }} viewBox="0 0 100 100">
+            <polygon points="50,15 12,52 88,52" fill="#eab308" stroke="#ca8a04" strokeWidth="1" />
+            <line x1="50" y1="15" x2="35" y2="40" stroke="#ca8a04" strokeWidth="0.8" />
+            <line x1="50" y1="15" x2="65" y2="40" stroke="#ca8a04" strokeWidth="0.8" />
+            <line x1="30" y1="35" x2="25" y2="50" stroke="#ca8a04" strokeWidth="0.8" />
+            <line x1="70" y1="35" x2="75" y2="50" stroke="#ca8a04" strokeWidth="0.8" />
+            <rect x="22" y="52" width="56" height="35" fill="#78350f" rx="2" />
+            <line x1="38" y1="52" x2="38" y2="87" stroke="#451a03" strokeWidth="0.8" />
+            <line x1="62" y1="52" x2="62" y2="87" stroke="#451a03" strokeWidth="0.8" />
+            <line x1="22" y1="70" x2="78" y2="70" stroke="#451a03" strokeWidth="0.8" />
+            <rect x="44" y="65" width="12" height="22" fill="#451a03" />
+          </svg>
+        </div>
+        <div style={badgeStyle}>{badgeText || 'YASIN STORE'}</div>
+      </div>
+    );
+  }
+
+  if (type === 'gamepad') {
+    return (
+      <div style={{ ...containerStyle, backgroundColor: '#07050a' }}>
+        <div style={glowStyle} />
+        <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(168,85,247,0.2)', backgroundColor: 'rgba(24,18,48,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Gamepad size={36} className="logoPurple" style={{ filter: 'drop-shadow(0 0 8px rgba(168,85,247,0.6))' }} />
+          </div>
+        </div>
+        <div style={badgeStyle}>{badgeText || 'YASIN STORE'}</div>
+      </div>
+    );
+  }
+
+  if (type === 'sword') {
+    return (
+      <div style={{ ...containerStyle, backgroundColor: '#090b14' }}>
+        <div style={glowStyle} />
+        <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(6,182,212,0.2)', backgroundColor: 'rgba(10,24,36,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: '2rem', filter: 'drop-shadow(0 0 8px rgba(6,182,212,0.6))' }}>⚔️</span>
+          </div>
+        </div>
+        <div style={badgeStyle}>{badgeText || 'YASIN STORE'}</div>
+      </div>
+    );
+  }
+
+  return null;
+}
 
 export default function Home() {
   const [allGames, setAllGames] = useState<Game[]>([]);
@@ -391,116 +522,195 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="container" style={{ flexGrow: 1, paddingTop: '40px' }}>
-
-        {/* Tab 1: Home Catalog */}
+      <main className="container" style={{ flexGrow: 1, paddingTop: '40px' }}>        {/* Tab 1: Home Catalog */}
         {activeTab === 'home' && (
-          <section className={styles.catalogHeader}>
-            <div className={styles.filterSection}>
-              <div className={styles.filterControls}>
-                {/* Search */}
-                <div className={styles.searchWrapper}>
-                  <Search size={18} className={styles.searchIcon} />
-                  <input 
-                    type="text" 
-                    placeholder="Search masterpieces..." 
-                    className={styles.searchInput}
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                </div>
+          <div>
+            {/* Advanced Responsive Hero Section */}
+            <section className={styles.premiumHeroSection}>
+              <div className={styles.premiumHero}>
+                {/* Background glows */}
+                <div className={styles.heroGlowLeft} />
+                <div className={styles.heroGlowRight} />
 
-                {/* Genre Pills */}
-                <div className={styles.pillsContainer}>
-                  {genres.map((g) => (
-                    <button
-                      key={g}
-                      className={`${styles.pill} ${genre === g ? styles.pillActive : ''}`}
-                      onClick={() => setGenre(g)}
-                    >
-                      {g}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+                <div className={styles.heroGrid}>
+                  {/* Left content block */}
+                  <div className={styles.heroLeft}>
+                    <span className={styles.heroBadge}>
+                      <CloudLightning size={12} style={{ marginRight: '6px' }} /> Live Key Dispatch
+                    </span>
+                    <h1 className={styles.heroTitle}>
+                      Masterpieces of <br />
+                      the <span className={styles.heroTitleHighlight}>Gaming Realm</span>
+                    </h1>
+                    <p className={styles.heroDesc}>
+                      Secure official activation licenses or customize dynamic poster cards using our Canva Gaming Studio. Redesigned with the modern neon UI of TRT Store.
+                    </p>
+                    <div className={styles.heroButtons}>
+                      <a
+                        href="#marketplace"
+                        className={`${styles.btn} ${styles.btnPrimary}`}
+                        style={{ textDecoration: 'none' }}
+                      >
+                        Explore Marketplace <ChevronRight size={14} />
+                      </a>
+                    </div>
+                  </div>
 
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, marginBottom: '24px' }}>
-              {genre === 'All' ? 'All Masterpieces' : `${genre} Games`} {search && `matching "${search}"`}
-            </h2>
-
-            {/* Loading State */}
-            {loading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0', color: 'var(--color-red)' }}>
-                <span className="red-glow-effect" style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 700 }}>
-                  LOADING DIRECTORY...
-                </span>
-              </div>
-            ) : games.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 0', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>No games match your criteria.</p>
-                <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => { setGenre('All'); setSearch(''); }}>
-                  Reset Filters
-                </button>
-              </div>
-            ) : (
-              /* Games Grid */
-              <div className={styles.gamesGrid}>
-                {games.map((game) => (
-                  <div 
-                    key={game.id} 
-                    className={styles.gameCard}
-                    onClick={() => setSelectedGame(game)}
-                  >
-                    <div className={styles.cardImgWrapper}>
-                      <span className={styles.cardTag}>{game.genre.split(' ')[0]}</span>
-                      <Image 
-                        src={game.poster}
-                        alt={game.title}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className={styles.cardImg}
-                        priority={game.id === 'neon-syndicate'}
-                      />
-                      <div className={styles.cardOverlay}>
-                        <span className={styles.cardQuickView}>
-                          <Gamepad2 size={16} /> View Details
-                        </span>
+                  {/* Right side floating showcase cards */}
+                  <div className={styles.heroRight}>
+                    {/* Minecraft Card floating */}
+                    <div className={styles.showcaseCardMinecraft}>
+                      <div className={styles.showcaseCardImgWrapper}>
+                        <GraphicRenderer type="smiley" badgeText="TRT STORE" glowColor="pink" />
+                      </div>
+                      <div className={styles.showcaseCardInfo}>
+                        <span className={styles.showcaseCardSub}>PC</span>
+                        <h4 className={styles.showcaseCardTitle}>Minecraft Special</h4>
+                        <div className={styles.showcaseCardFooter}>
+                          <span className={styles.showcaseCardPrice}>12,000 IQD</span>
+                          <span className={styles.showcaseCardBadge}>TRT STORE</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className={styles.cardContent}>
-                      <div className={styles.cardHeaderInfo}>
-                        <span className={styles.cardMeta}>
-                          {game.platforms[0]}{game.platforms.length > 1 && ` +${game.platforms.length - 1}`}
-                        </span>
+                    {/* GTA 5 card background stacked */}
+                    <div className={styles.showcaseCardGta}>
+                      <div className={styles.showcaseCardImgWrapperSmall}>
+                        <GraphicRenderer type="house" badgeText="TRT STORE" glowColor="amber" />
                       </div>
-
-                      <h3 className={styles.cardTitle}>{game.title}</h3>
-                      <p className={styles.cardDesc}>{game.description}</p>
-
-                      <div className={styles.cardFooter}>
-                        <div>
-                          <span className={styles.price}>{game.price.toLocaleString()} IQD</span>
-                          {game.asiaPrice != null && game.asiaPrice > 0 && (
-                            <span style={{ display: 'block', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>Asia: {game.asiaPrice.toLocaleString()} IQD</span>
-                          )}
+                      <div className={styles.showcaseCardInfo}>
+                        <span className={styles.showcaseCardSub}>PC +1</span>
+                        <h4 className={styles.showcaseCardTitle}>GTA 5</h4>
+                        <div className={styles.showcaseCardFooter}>
+                          <span className={styles.showcaseCardPrice}>20,000 IQD</span>
                         </div>
-                        <button 
-                          className={styles.cardBtn}
-                          onClick={(e) => addToCart(game, e)}
-                          title="Add to Cart"
-                          aria-label={`Add ${game.title} to cart`}
-                        >
-                          <Plus size={20} />
-                        </button>
                       </div>
                     </div>
                   </div>
-                ))}
+                </div>
               </div>
-            )}
-          </section>
+            </section>
+
+            {/* Catalog Section */}
+            <section id="marketplace" className={styles.catalogHeader} style={{ scrollMarginTop: '100px' }}>
+              <div className={styles.filterSection}>
+                <div className={styles.filterControls}>
+                  {/* Search */}
+                  <div className={styles.searchWrapper}>
+                    <Search size={18} className={styles.searchIcon} />
+                    <input 
+                      type="text" 
+                      placeholder="Search masterpieces..." 
+                      className={styles.searchInput}
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Genre Pills */}
+                  <div className={styles.pillsContainer}>
+                    {genres.map((g) => (
+                      <button
+                        key={g}
+                        className={`${styles.pill} ${genre === g ? styles.pillActive : ''}`}
+                        onClick={() => setGenre(g)}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, marginBottom: '24px' }}>
+                {genre === 'All' ? 'All Masterpieces' : `${genre} Games`} {search && `matching "${search}"`}
+              </h2>
+
+              {/* Loading State */}
+              {loading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0', color: 'var(--color-red)' }}>
+                  <span className="red-glow-effect" style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 700 }}>
+                    LOADING DIRECTORY...
+                  </span>
+                </div>
+              ) : games.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 0', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>No games match your criteria.</p>
+                  <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => { setGenre('All'); setSearch(''); }}>
+                    Reset Filters
+                  </button>
+                </div>
+              ) : (
+                /* Games Grid */
+                <div className={styles.gamesGrid}>
+                  {games.map((game) => {
+                    let glowClass = '';
+                    if (game.glowColor === 'pink') glowClass = styles.cardPink;
+                    else if (game.glowColor === 'cyan') glowClass = styles.cardCyan;
+                    else if (game.glowColor === 'amber') glowClass = styles.cardAmber;
+                    else if (game.glowColor === 'purple') glowClass = styles.cardPurple;
+
+                    return (
+                      <div 
+                        key={game.id} 
+                        className={`${styles.gameCard} ${glowClass}`}
+                        onClick={() => setSelectedGame(game)}
+                      >
+                        <div className={styles.cardImgWrapper}>
+                          <span className={styles.cardTag}>{game.tag || game.genre.split(' ')[0]}</span>
+                          {game.customGraphic ? (
+                            <GraphicRenderer type={game.customGraphic} badgeText={game.badgeText} glowColor={game.glowColor} />
+                          ) : (
+                            <Image 
+                              src={game.poster}
+                              alt={game.title}
+                              fill
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              className={styles.cardImg}
+                              priority={game.id === 'neon-syndicate'}
+                            />
+                          )}
+                          <div className={styles.cardOverlay}>
+                            <span className={styles.cardQuickView}>
+                              <Gamepad2 size={16} /> View Details
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className={styles.cardContent}>
+                          <div className={styles.cardHeaderInfo}>
+                            <span className={styles.cardMeta}>
+                              {game.platforms[0]}{game.platforms.length > 1 && ` +${game.platforms.length - 1}`}
+                            </span>
+                          </div>
+
+                          <h3 className={styles.cardTitle}>{game.title}</h3>
+                          <p className={styles.cardDesc}>{game.description}</p>
+
+                          <div className={styles.cardFooter}>
+                            <div>
+                              <span className={styles.price}>{game.price.toLocaleString()} IQD</span>
+                              {game.asiaPrice != null && game.asiaPrice > 0 && (
+                                <span style={{ display: 'block', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>Asia: {game.asiaPrice.toLocaleString()} IQD</span>
+                              )}
+                            </div>
+                            <button 
+                              className={styles.cardBtn}
+                              onClick={(e) => addToCart(game, e)}
+                              title="Add to Cart"
+                              aria-label={`Add ${game.title} to cart`}
+                            >
+                              <Plus size={20} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </div>
         )}
 
         {/* Tab 2: About */}

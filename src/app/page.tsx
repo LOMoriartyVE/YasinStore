@@ -154,6 +154,32 @@ function GraphicRenderer({ type, badgeText, glowColor }: GraphicRendererProps) {
   return null;
 }
 
+function getDiscountLabel(untilStr: string | null | undefined): string {
+  if (!untilStr) return 'SPECIAL OFFER';
+  const now = new Date();
+  const target = new Date(untilStr);
+  const diffMs = target.getTime() - now.getTime();
+  if (diffMs <= 0) return '';
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 1) return 'ENDS TODAY';
+  if (diffDays <= 7) return `ENDS IN ${diffDays} DAYS`;
+  return `SALE UNTIL ${target.toLocaleDateString()}`;
+}
+
+function getEffectivePrice(game: Game): number {
+  const now = new Date();
+  const isDiscountActive = game.discountPrice != null && 
+    (game.discountUntil == null || new Date(game.discountUntil) > now);
+  return isDiscountActive ? game.discountPrice! : game.price;
+}
+
+function getEffectiveAsiaPrice(game: Game): number | null {
+  const now = new Date();
+  const isDiscountActive = game.discountPrice != null && 
+    (game.discountUntil == null || new Date(game.discountUntil) > now);
+  return isDiscountActive ? (game.discountAsiaPrice ?? game.asiaPrice) : game.asiaPrice;
+}
+
 export default function Home() {
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [games, setGames] = useState<Game[]>([]);
@@ -167,23 +193,23 @@ export default function Home() {
   const [authUser, setAuthUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-
+ 
   // Tab State
   const [activeTab, setActiveTab] = useState<'home' | 'about' | 'support'>('home');
-
+ 
   // Manual payment & contact states
   const [showPayment, setShowPayment] = useState(false);
   const [activeRequestId, setActiveRequestId] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutToast, setCheckoutToast] = useState<{ message: string; type: 'success' | 'error' | 'loading' } | null>(null);
   const [contactInfo, setContactInfo] = useState({
-    whatsapp: '+964 770 000 0000',
-    instagram: 'trt.store',
-    telegram: 'trt_store',
-    facebook: 'https://www.facebook.com/TRTstore1',
-    zainCash: '0770 000 0000',
-    asiacell: '0770 000 0000',
-    qiCard: 'Available upon request'
+    whatsapp: '',
+    instagram: '',
+    telegram: '',
+    facebook: '',
+    zainCash: '',
+    asiacell: '',
+    qiCard: ''
   });
 
   // Load theme, auth, products, cart, contacts on mount
@@ -342,8 +368,8 @@ export default function Home() {
     const requestItems = cart.map((item) => ({
       request_id: reqId,
       product_name: item.title,
-      price: item.price,
-      asia_price: item.asiaPrice || 0,
+      price: getEffectivePrice(item),
+      asia_price: getEffectiveAsiaPrice(item) || 0,
       platform: item.platform,
     }));
 
@@ -401,7 +427,7 @@ export default function Home() {
     return contactInfo.facebook || '';
   };
 
-  const cartTotal = cart.reduce((total, item) => total + item.price, 0);
+  const cartTotal = cart.reduce((total, item) => total + getEffectivePrice(item), 0);
 
   const checkoutToastStyles = checkoutToast
     ? {
@@ -657,17 +683,28 @@ export default function Home() {
                         onClick={() => setSelectedGame(game)}
                       >
                         <div className={styles.cardImgWrapper}>
-                          <span className={styles.cardTag}>{game.tag || game.genre.split(' ')[0]}</span>
+                          {(() => {
+                            const now = new Date();
+                            const isDiscountActive = game.discountPrice != null && 
+                              (game.discountUntil == null || new Date(game.discountUntil) > now);
+                            if (isDiscountActive) {
+                              const label = getDiscountLabel(game.discountUntil);
+                              return (
+                                <span className={styles.cardTag} style={{ backgroundColor: '#ef4444', color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                  {label || 'SALE'}
+                                </span>
+                              );
+                            }
+                            return <span className={styles.cardTag}>{game.tag || game.genre.split(' ')[0]}</span>;
+                          })()}
                           {game.customGraphic ? (
                             <GraphicRenderer type={game.customGraphic} badgeText={game.badgeText} glowColor={game.glowColor} />
                           ) : (
-                            <Image 
+                            <img 
                               src={game.poster}
                               alt={game.title}
-                              fill
-                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                               className={styles.cardImg}
-                              priority={game.id === 'neon-syndicate'}
+                              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                             />
                           )}
                           <div className={styles.cardOverlay}>
@@ -689,10 +726,37 @@ export default function Home() {
 
                           <div className={styles.cardFooter}>
                             <div>
-                              <span className={styles.price}>{game.price.toLocaleString()} IQD</span>
-                              {game.asiaPrice != null && game.asiaPrice > 0 && (
-                                <span style={{ display: 'block', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>Asia: {game.asiaPrice.toLocaleString()} IQD</span>
-                              )}
+                              {(() => {
+                                const now = new Date();
+                                const isDiscountActive = game.discountPrice != null && 
+                                  (game.discountUntil == null || new Date(game.discountUntil) > now);
+                                if (isDiscountActive) {
+                                  const effectiveAsia = game.discountAsiaPrice ?? game.asiaPrice;
+                                  return (
+                                    <>
+                                      <span className={styles.price} style={{ color: '#ef4444' }}>
+                                        {game.discountPrice!.toLocaleString()} IQD
+                                      </span>
+                                      <span style={{ textDecoration: 'line-through', color: 'var(--text-tertiary)', fontSize: '0.85rem', marginLeft: '8px' }}>
+                                        {game.price.toLocaleString()} IQD
+                                      </span>
+                                      {effectiveAsia != null && effectiveAsia > 0 && (
+                                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>
+                                          {game.discountAsiaPrice != null ? 'Asia Sale' : 'Asia'}: {effectiveAsia.toLocaleString()} IQD
+                                        </span>
+                                      )}
+                                    </>
+                                  );
+                                }
+                                return (
+                                  <>
+                                    <span className={styles.price}>{game.price.toLocaleString()} IQD</span>
+                                    {game.asiaPrice != null && game.asiaPrice > 0 && (
+                                      <span style={{ display: 'block', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>Asia: {game.asiaPrice.toLocaleString()} IQD</span>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
                             <button 
                               className={styles.cardBtn}
@@ -1017,34 +1081,49 @@ export default function Home() {
             </div>
           ) : (
             <div className={styles.cartItemsList}>
-              {cart.map((item) => (
-                <div key={item.id} className={styles.cartItem}>
-                  <div className={styles.cartItemImgWrapper}>
-                    <Image 
-                      src={item.poster} 
-                      alt={item.title} 
-                      fill 
-                      sizes="60px"
-                      style={{ objectFit: 'cover' }}
-                    />
+              {cart.map((item) => {
+                const now = new Date();
+                const isDiscountActive = item.discountPrice != null && 
+                  (item.discountUntil == null || new Date(item.discountUntil) > now);
+                const effectivePrice = isDiscountActive ? item.discountPrice! : item.price;
+                const effectiveAsiaPrice = isDiscountActive ? (item.discountAsiaPrice ?? item.asiaPrice) : item.asiaPrice;
+
+                return (
+                  <div key={item.id} className={styles.cartItem}>
+                    <div className={styles.cartItemImgWrapper}>
+                      <img 
+                        src={item.poster} 
+                        alt={item.title} 
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+                    <div className={styles.cartItemInfo}>
+                      <h4 className={styles.cartItemTitle}>{item.title}</h4>
+                      <span className={styles.cartItemGenre}>{item.genre}</span>
+                      {isDiscountActive ? (
+                        <div>
+                          <span className={styles.cartItemPrice} style={{ color: '#ef4444' }}>{effectivePrice.toLocaleString()} IQD</span>
+                          <span style={{ textDecoration: 'line-through', color: 'var(--text-tertiary)', fontSize: '0.7rem', marginLeft: '6px' }}>{item.price.toLocaleString()} IQD</span>
+                        </div>
+                      ) : (
+                        <span className={styles.cartItemPrice}>{item.price.toLocaleString()} IQD</span>
+                      )}
+                      {effectiveAsiaPrice != null && effectiveAsiaPrice > 0 && (
+                        <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600 }}>
+                          {isDiscountActive && item.discountAsiaPrice != null ? 'Asia Sale' : 'Asia'}: {effectiveAsiaPrice.toLocaleString()} IQD
+                        </span>
+                      )}
+                    </div>
+                    <button 
+                      className={styles.removeBtn}
+                      onClick={() => removeFromCart(item.id)}
+                      title="Remove from Cart"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <div className={styles.cartItemInfo}>
-                    <h4 className={styles.cartItemTitle}>{item.title}</h4>
-                    <span className={styles.cartItemGenre}>{item.genre}</span>
-                    <span className={styles.cartItemPrice}>{item.price.toLocaleString()} IQD</span>
-                    {item.asiaPrice != null && item.asiaPrice > 0 && (
-                      <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600 }}>Asia: {item.asiaPrice.toLocaleString()} IQD</span>
-                    )}
-                  </div>
-                  <button 
-                    className={styles.removeBtn}
-                    onClick={() => removeFromCart(item.id)}
-                    title="Remove from Cart"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -1108,12 +1187,11 @@ export default function Home() {
 
             <div className={styles.modalBody}>
               <div className={styles.modalImgWrapper}>
-                <Image 
+                <img 
                   src={selectedGame.poster} 
                   alt={selectedGame.title} 
-                  fill 
-                  sizes="(max-width: 768px) 100vw, 400px"
                   className={styles.modalImg}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               </div>
 
@@ -1139,10 +1217,35 @@ export default function Home() {
                 <div className={styles.modalFooter}>
                   <div className={styles.modalPrice}>
                     <span className={styles.modalPriceLabel}>Instant Access</span>
-                    <span className={styles.modalPriceVal}>{selectedGame.price.toLocaleString()} IQD</span>
-                    {selectedGame.asiaPrice != null && selectedGame.asiaPrice > 0 && (
-                      <span style={{ display: 'block', fontSize: '0.85rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>Asia Price: {selectedGame.asiaPrice.toLocaleString()} IQD</span>
-                    )}
+                    {(() => {
+                      const now = new Date();
+                      const isDiscountActive = selectedGame.discountPrice != null && 
+                        (selectedGame.discountUntil == null || new Date(selectedGame.discountUntil) > now);
+                      if (isDiscountActive) {
+                        const effectiveAsia = selectedGame.discountAsiaPrice ?? selectedGame.asiaPrice;
+                        return (
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                              <span className={styles.modalPriceVal} style={{ color: '#ef4444' }}>{selectedGame.discountPrice!.toLocaleString()} IQD</span>
+                              <span style={{ textDecoration: 'line-through', color: 'var(--text-tertiary)', fontSize: '0.9rem' }}>{selectedGame.price.toLocaleString()} IQD</span>
+                            </div>
+                            {effectiveAsia != null && effectiveAsia > 0 && (
+                              <span style={{ display: 'block', fontSize: '0.85rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>
+                                {selectedGame.discountAsiaPrice != null ? 'Asia Sale Price' : 'Asia Price'}: {effectiveAsia.toLocaleString()} IQD
+                              </span>
+                            )}
+                          </>
+                        );
+                      }
+                      return (
+                        <>
+                          <span className={styles.modalPriceVal}>{selectedGame.price.toLocaleString()} IQD</span>
+                          {selectedGame.asiaPrice != null && selectedGame.asiaPrice > 0 && (
+                            <span style={{ display: 'block', fontSize: '0.85rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>Asia Price: {selectedGame.asiaPrice.toLocaleString()} IQD</span>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                   <button 
                     className={`${styles.btn} ${styles.btnPrimary} ${styles.modalBtn}`}

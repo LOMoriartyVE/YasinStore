@@ -13,6 +13,9 @@ export interface Game {
   customGraphic?: string | null;
   tag?: string | null;
   badgeText?: string | null;
+  discountPrice?: number | null;
+  discountAsiaPrice?: number | null;
+  discountUntil?: string | null;
 }
 
 // Supabase products table shape (matches exact column names)
@@ -27,6 +30,9 @@ export interface Product {
   custom_graphic?: string | null;
   tag?: string | null;
   badge_text?: string | null;
+  discount_price?: number | null;
+  discount_asia_price?: number | null;
+  discount_until?: string | null;
 }
 
 // Platform bitmask options — each is a power of 2
@@ -78,6 +84,9 @@ export function productToGame(product: Product): Game {
     customGraphic: product.custom_graphic || null,
     tag: product.tag || null,
     badgeText: product.badge_text || null,
+    discountPrice: product.discount_price || null,
+    discountAsiaPrice: product.discount_asia_price || null,
+    discountUntil: product.discount_until || null,
   };
 }
 

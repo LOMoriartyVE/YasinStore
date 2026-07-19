@@ -417,7 +417,7 @@
 
 .cardImgWrapper {
   position: relative;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 4 / 5;
   overflow: hidden;
   background-color: var(--bg-tertiary);
 }
@@ -477,11 +477,11 @@
 }
 
 .cardContent {
-  padding: 20px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
-  gap: 12px;
+  gap: 8px;
 }
 
 .cardHeaderInfo {
@@ -532,7 +532,7 @@
   justify-content: space-between;
   margin-top: auto;
   border-top: 1px solid var(--border-color);
-  padding-top: 16px;
+  padding-top: 10px;
 }
 
 .price {

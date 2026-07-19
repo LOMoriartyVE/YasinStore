@@ -171,15 +171,18 @@ export default function AdminPage() {
   const [customGraphic, setCustomGraphic] = useState('');
   const [tag, setTag] = useState('');
   const [badgeText, setBadgeText] = useState('');
+  const [discountPrice, setDiscountPrice] = useState('');
+  const [discountAsiaPrice, setDiscountAsiaPrice] = useState('');
+  const [discountUntil, setDiscountUntil] = useState('');
 
   // Admin Contact Details state
-  const [whatsapp, setWhatsapp] = useState('+964 770 000 0000');
-  const [instagram, setInstagram] = useState('trt.store');
-  const [telegram, setTelegram] = useState('trt_store');
-  const [facebook, setFacebook] = useState('https://www.facebook.com/TRTstore1');
-  const [zainCash, setZainCash] = useState('0770 000 0000');
-  const [asiacell, setAsiacell] = useState('0770 000 0000');
-  const [qiCard, setQiCard] = useState('Available upon request');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [telegram, setTelegram] = useState('');
+  const [facebook, setFacebook] = useState('');
+  const [zainCash, setZainCash] = useState('');
+  const [asiacell, setAsiacell] = useState('');
+  const [qiCard, setQiCard] = useState('');
   const [tableError, setTableError] = useState(false);
 
   // Load products from Supabase, theme, and authentication
@@ -193,13 +196,13 @@ export default function AdminPage() {
     const fetchConfig = async () => {
       const res = await getStoreConfig();
       if (res && res.data) {
-        if (res.data.whatsapp) setWhatsapp(res.data.whatsapp);
-        if (res.data.instagram) setInstagram(res.data.instagram);
-        if (res.data.telegram) setTelegram(res.data.telegram);
-        if (res.data.facebook) setFacebook(res.data.facebook);
-        if (res.data.zain_cash) setZainCash(res.data.zain_cash);
-        if (res.data.asiacell) setAsiacell(res.data.asiacell);
-        if (res.data.qi_card) setQiCard(res.data.qi_card);
+        setWhatsapp(res.data.whatsapp || '');
+        setInstagram(res.data.instagram || '');
+        setTelegram(res.data.telegram || '');
+        setFacebook(res.data.facebook || '');
+        setZainCash(res.data.zain_cash || '');
+        setAsiacell(res.data.asiacell || '');
+        setQiCard(res.data.qi_card || '');
       } else if (res && res.tableDoesNotExist) {
         setTableError(true);
         // Fallback to local storage
@@ -207,13 +210,13 @@ export default function AdminPage() {
         if (savedContact) {
           try {
             const parsed = JSON.parse(savedContact);
-            if (parsed.whatsapp) setWhatsapp(parsed.whatsapp);
-            if (parsed.instagram) setInstagram(parsed.instagram);
-            if (parsed.telegram) setTelegram(parsed.telegram);
-            if (parsed.facebook) setFacebook(parsed.facebook);
-            if (parsed.zainCash) setZainCash(parsed.zainCash);
-            if (parsed.asiacell) setAsiacell(parsed.asiacell);
-            if (parsed.qiCard) setQiCard(parsed.qiCard);
+            setWhatsapp(parsed.whatsapp || '');
+            setInstagram(parsed.instagram || '');
+            setTelegram(parsed.telegram || '');
+            setFacebook(parsed.facebook || '');
+            setZainCash(parsed.zainCash || '');
+            setAsiacell(parsed.asiacell || '');
+            setQiCard(parsed.qiCard || '');
           } catch (e) {
             console.error('Failed to parse contact info fallback', e);
           }
@@ -350,6 +353,9 @@ export default function AdminPage() {
       custom_graphic: customGraphic || null,
       tag: tag || null,
       badge_text: badgeText || null,
+      discount_price: discountPrice ? parseFloat(parseFloat(discountPrice).toFixed(2)) : null,
+      discount_asia_price: discountAsiaPrice ? parseFloat(parseFloat(discountAsiaPrice).toFixed(2)) : null,
+      discount_until: discountUntil || null,
     };
 
     const { success, error } = await addProduct(newProduct);
@@ -373,6 +379,9 @@ export default function AdminPage() {
     setCustomGraphic('');
     setTag('');
     setBadgeText('');
+    setDiscountPrice('');
+    setDiscountAsiaPrice('');
+    setDiscountUntil('');
 
     showToast(`"${name}" added to database!`);
     setIsSubmitting(false);
@@ -493,8 +502,8 @@ export default function AdminPage() {
 
       {/* Main Console */}
       <main className={`${styles.dashboardGrid} container`}>
-        {/* Column 1 (Left): Form & Live Preview */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* Row 1: Split Form & Live Preview */}
+        <div className={styles.twoColumnRow}>
           {/* Add Product Form */}
           <section className={styles.panelCard}>
             <h2 className={styles.panelTitle}>
@@ -550,6 +559,48 @@ export default function AdminPage() {
                 />
               </div>
 
+              {/* Discount Pricing Section */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', border: '1px dashed var(--border-color)', padding: '16px', borderRadius: '8px', margin: '16px 0' }}>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <h4 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '0.9rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    🏷️ Discount Pricing (Optional)
+                  </h4>
+                </div>
+                <div className={styles.formGroup} style={{ margin: 0 }}>
+                  <label className={styles.label} style={{ fontSize: '0.75rem' }}>Discount Price (IQD)</label>
+                  <input 
+                    type="number" 
+                    step="500" 
+                    min="0"
+                    placeholder="e.g. 70000" 
+                    className={styles.input}
+                    value={discountPrice}
+                    onChange={(e) => setDiscountPrice(e.target.value)}
+                  />
+                </div>
+                <div className={styles.formGroup} style={{ margin: 0 }}>
+                  <label className={styles.label} style={{ fontSize: '0.75rem' }}>Discount Asia Price (IQD)</label>
+                  <input 
+                    type="number" 
+                    step="500" 
+                    min="0"
+                    placeholder="e.g. 60000" 
+                    className={styles.input}
+                    value={discountAsiaPrice}
+                    onChange={(e) => setDiscountAsiaPrice(e.target.value)}
+                  />
+                </div>
+                <div className={styles.formGroup} style={{ gridColumn: 'span 2', margin: 0 }}>
+                  <label className={styles.label} style={{ fontSize: '0.75rem' }}>Discount Valid Until</label>
+                  <input 
+                    type="datetime-local" 
+                    className={styles.input}
+                    value={discountUntil}
+                    onChange={(e) => setDiscountUntil(e.target.value)}
+                  />
+                </div>
+              </div>
+
               {/* Platform Multi-Select Icons */}
               <div className={styles.formGroup}>
                 <label className={styles.label}>Platforms * <span style={{ fontWeight: 400, textTransform: 'none', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>(click to toggle)</span></label>
@@ -588,12 +639,10 @@ export default function AdminPage() {
                   ) : (
                     <div className={styles.previewBox}>
                       <div className={styles.previewThumb}>
-                        <Image 
+                        <img 
                           src={posterFile} 
                           alt="Preview cover" 
-                          fill 
-                          sizes="50px"
-                          style={{ objectFit: 'cover' }}
+                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                       </div>
                       <div className={styles.previewInfo}>
@@ -697,21 +746,24 @@ export default function AdminPage() {
                   else if (glowColor === 'amber') glowClass = storeStyles.cardAmber;
                   else if (glowColor === 'purple') glowClass = storeStyles.cardPurple;
 
+                  const now = new Date();
+                  const isDiscountActive = discountPrice !== '' && 
+                    (discountUntil === '' || new Date(discountUntil) > now);
+
                   return (
                     <div className={`${storeStyles.gameCard} ${glowClass}`} style={{ pointerEvents: 'none' }}>
                       <div className={storeStyles.cardImgWrapper}>
-                        <span className={storeStyles.cardTag}>{tag || 'GENRE'}</span>
+                        <span className={storeStyles.cardTag}>
+                          {isDiscountActive ? (discountUntil ? 'SALE' : 'PROMO') : (tag || 'GENRE')}
+                        </span>
                         {customGraphic ? (
                           <GraphicRenderer type={customGraphic} badgeText={badgeText} glowColor={glowColor} />
                         ) : (
                           <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '370px' }}>
-                            <Image 
+                            <img 
                               src={posterFile || DEFAULT_LOGO_POSTER}
                               alt={name || 'Preview'}
-                              fill
-                              sizes="280px"
-                              style={{ objectFit: 'cover' }}
-                              priority
+                              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                             />
                           </div>
                         )}
@@ -734,11 +786,33 @@ export default function AdminPage() {
 
                         <div className={storeStyles.cardFooter}>
                           <div>
-                            <span className={storeStyles.price}>{(parseFloat(price) || 0).toLocaleString()} IQD</span>
-                            {asiaPrice !== '' && parseFloat(asiaPrice) > 0 && (
-                              <span style={{ display: 'block', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>
-                                Asia: {(parseFloat(asiaPrice) || 0).toLocaleString()} IQD
-                              </span>
+                            {isDiscountActive ? (
+                              <>
+                                <span className={storeStyles.price} style={{ color: '#ef4444' }}>
+                                  {(parseFloat(discountPrice) || 0).toLocaleString()} IQD
+                                </span>
+                                <span style={{ textDecoration: 'line-through', color: 'var(--text-tertiary)', fontSize: '0.85rem', marginLeft: '8px' }}>
+                                  {(parseFloat(price) || 0).toLocaleString()} IQD
+                                </span>
+                                {discountAsiaPrice !== '' && parseFloat(discountAsiaPrice) > 0 ? (
+                                  <span style={{ display: 'block', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>
+                                    Asia Sale: {(parseFloat(discountAsiaPrice) || 0).toLocaleString()} IQD
+                                  </span>
+                                ) : asiaPrice !== '' && parseFloat(asiaPrice) > 0 ? (
+                                  <span style={{ display: 'block', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>
+                                    Asia: {(parseFloat(asiaPrice) || 0).toLocaleString()} IQD
+                                  </span>
+                                ) : null}
+                              </>
+                            ) : (
+                              <>
+                                <span className={storeStyles.price}>{(parseFloat(price) || 0).toLocaleString()} IQD</span>
+                                {asiaPrice !== '' && parseFloat(asiaPrice) > 0 && (
+                                  <span style={{ display: 'block', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px' }}>
+                                    Asia: {(parseFloat(asiaPrice) || 0).toLocaleString()} IQD
+                                  </span>
+                                )}
+                              </>
                             )}
                           </div>
                           <button 
@@ -757,63 +831,87 @@ export default function AdminPage() {
           </section>
         </div>
 
-        {/* Column 2 (Right): Catalog List & Contact Settings */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Current Catalog List */}
-          <section className={styles.panelCard}>
-            <h2 className={styles.panelTitle}>
-              <Database size={20} className={styles.titlePurple} /> Current Catalog ({products.length})
-            </h2>
-            <div className={styles.catalogList}>
-              {products.length === 0 ? (
-                <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px 0' }}>
-                  Catalog is empty. Add products using the form.
-                </p>
-              ) : (
-                products.map((product) => (
-                  <div key={product.name} className={styles.catalogItem}>
-                    <div className={styles.itemImgWrapper}>
-                      <Image 
-                        src={product.image_url || DEFAULT_LOGO_POSTER} 
-                        alt={product.name} 
-                        fill 
-                        sizes="50px"
-                        style={{ objectFit: 'cover' }}
-                      />
-                    </div>
-                    <div className={styles.itemInfo}>
-                      <h3 className={styles.itemTitle}>{product.name}</h3>
-                      <div className={styles.itemMeta}>
-                        <span className={styles.itemPrice}>{product.Price.toLocaleString()} IQD</span>
-                        {product.asia_price != null && product.asia_price > 0 && (
-                          <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginLeft: '8px' }}>Asia: {product.asia_price.toLocaleString()} IQD</span>
-                        )}
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginLeft: '8px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.15)' }}>{getPlatformLabel(product.platform)}</span>
-                      </div>
-                    </div>
-                    <button 
-                      className={styles.deleteBtn}
-                      onClick={() => handleDeleteProduct(product.name)}
-                      title="Remove Product"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+        {/* Row 2: Catalog list shown in grid (Full Width) */}
+        <section className={styles.panelCard}>
+          <h2 className={styles.panelTitle}>
+            <Database size={20} className={styles.titlePurple} /> Current Catalog ({products.length})
+          </h2>
+          <div className={styles.catalogGrid}>
+            {products.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px 0', gridColumn: '1 / -1' }}>
+                Catalog is empty. Add products using the form.
+              </p>
+            ) : (
+              products.map((product) => (
+                <div key={product.name} className={styles.catalogItem}>
+                  <div className={styles.itemImgWrapper}>
+                    <img 
+                      src={product.image_url || DEFAULT_LOGO_POSTER} 
+                      alt={product.name} 
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
                   </div>
-                ))
-              )}
-            </div>
-          </section>
+                  <div className={styles.itemInfo}>
+                    <h3 className={styles.itemTitle}>{product.name}</h3>
+                    <div className={styles.itemMeta}>
+                      {(() => {
+                        const now = new Date();
+                        const isDiscountActive = product.discount_price != null && 
+                          (product.discount_until == null || new Date(product.discount_until) > now);
+                        if (isDiscountActive) {
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span className={styles.itemPrice} style={{ color: '#ef4444' }}>
+                                  {product.discount_price!.toLocaleString()} IQD
+                                </span>
+                                <span style={{ textDecoration: 'line-through', color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
+                                  {product.Price.toLocaleString()} IQD
+                                </span>
+                              </div>
+                              {product.discount_asia_price != null && product.discount_asia_price > 0 ? (
+                                <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600 }}>Asia Sale: {product.discount_asia_price.toLocaleString()} IQD</span>
+                              ) : product.asia_price != null && product.asia_price > 0 ? (
+                                <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600 }}>Asia: {product.asia_price.toLocaleString()} IQD</span>
+                              ) : null}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span className={styles.itemPrice}>{product.Price.toLocaleString()} IQD</span>
+                            {product.asia_price != null && product.asia_price > 0 && (
+                              <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600 }}>Asia: {product.asia_price.toLocaleString()} IQD</span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.15)', height: 'fit-content' }}>{getPlatformLabel(product.platform)}</span>
+                    </div>
+                  </div>
+                  <button 
+                    className={styles.deleteBtn}
+                    onClick={() => handleDeleteProduct(product.name)}
+                    title="Remove Product"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
-          {/* Contact & Payment Info Settings Card */}
-          <section className={styles.panelCard}>
-            <h2 className={styles.panelTitle}>
-              <Database size={20} className={styles.titlePurple} /> Store Contact & Payment Info
-            </h2>
-            {tableError && (
-              <div style={{ padding: '16px', backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid #f59e0b', borderRadius: 'var(--radius-md)', color: '#f59e0b', fontSize: '0.85rem', lineHeight: '1.5' }}>
-                <strong style={{ display: 'block', marginBottom: '6px' }}>⚠️ Supabase Database Table Pending</strong>
-                To save these settings permanently in the database, create the config table in your Supabase project. Go to <strong>Supabase Dashboard &gt; SQL Editor &gt; New Query</strong>, paste the following SQL, and click <strong>Run</strong>:
-                <pre style={{ margin: '10px 0 0 0', padding: '12px', backgroundColor: 'var(--bg-primary)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '6px', fontFamily: 'monospace', overflowX: 'auto', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+        {/* Row 3: Store Contact & Payment Info (Full Width) */}
+        <section className={styles.panelCard}>
+          <h2 className={styles.panelTitle}>
+            <Database size={20} className={styles.titlePurple} /> Store Contact & Payment Info
+          </h2>
+          {tableError && (
+            <div style={{ padding: '16px', backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid #f59e0b', borderRadius: 'var(--radius-md)', color: '#f59e0b', fontSize: '0.85rem', lineHeight: '1.5' }}>
+              <strong style={{ display: 'block', marginBottom: '6px' }}>⚠️ Supabase Database Table Pending</strong>
+              To save these settings permanently in the database, create the config table in your Supabase project. Go to <strong>Supabase Dashboard &gt; SQL Editor &gt; New Query</strong>, paste the following SQL, and click <strong>Run</strong>:
+              <pre style={{ margin: '10px 0 0 0', padding: '12px', backgroundColor: 'var(--bg-primary)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '6px', fontFamily: 'monospace', overflowX: 'auto', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
 {`CREATE TABLE IF NOT EXISTS public.store_config (
   id int PRIMARY KEY DEFAULT 1,
   whatsapp text,
@@ -828,10 +926,11 @@ export default function AdminPage() {
 INSERT INTO public.store_config (id, whatsapp, instagram, telegram, facebook, zain_cash, asiacell, qi_card)
 VALUES (1, '+964 770 000 0000', 'trt.store', 'trt_store', 'https://www.facebook.com/TRTstore1', '0770 000 0000', '0770 000 0000', 'Available upon request')
 ON CONFLICT (id) DO NOTHING;`}
-                </pre>
-              </div>
-            )}
-            <form className={styles.form} onSubmit={handleSaveContactInfo}>
+              </pre>
+            </div>
+          )}
+          <form className={styles.form} onSubmit={handleSaveContactInfo}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
               <div className={styles.formGroup}>
                 <label className={styles.label}>WhatsApp Number</label>
                 <input 
@@ -902,13 +1001,13 @@ ON CONFLICT (id) DO NOTHING;`}
                   placeholder="Available upon request"
                 />
               </div>
+            </div>
 
-              <button type="submit" className={styles.submitBtn} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
-                Save Contact Details
-              </button>
-            </form>
-          </section>
-        </div>
+            <button type="submit" className={styles.submitBtn} style={{ marginTop: '20px', width: 'fit-content', padding: '14px 28px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
+              Save Contact Details
+            </button>
+          </form>
+        </section>
       </main>
 
       {/* Success Toast */}

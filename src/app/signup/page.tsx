@@ -86,7 +86,7 @@ export default function SignupPage() {
     <div className={styles.authPage}>
       <div className={styles.authCard}>
         <div className={styles.authIcon}>
-          <Gamepad2 size={48} style={{ borderRadius: '50%', padding: '10px', backgroundColor: 'rgba(255,46,77,0.1)' }} />
+          <Gamepad2 size={48} style={{ borderRadius: '50%', padding: '10px', backgroundColor: 'rgba(168,85,247,0.1)' }} />
         </div>
         
         {success ? (
@@ -95,13 +95,13 @@ export default function SignupPage() {
             <h1 className={styles.authTitle}>Check Your Email</h1>
             <p className={styles.authDesc}>We sent a verification link to your email. Click the link to activate your account, then you can sign in.</p>
             <p className={styles.authLink} style={{ marginTop: '12px' }}>
-              <Link href="/login" style={{ color: 'var(--color-red)', fontWeight: 'bold' }}>Go to Sign In</Link>
+              <Link href="/login" style={{ color: 'var(--color-purple)', fontWeight: 'bold' }}>Go to Sign In</Link>
             </p>
           </div>
         ) : (
           <>
             <h1 className={styles.authTitle}>Create Account</h1>
-            <p className={styles.authDesc}>Join Yasin Store to get access to exclusive game deals and instant digital delivery.</p>
+            <p className={styles.authDesc}>Join TRT Store to get access to exclusive game deals and instant digital delivery.</p>
 
             <form onSubmit={handleSignup} className={styles.authForm}>
               <div>

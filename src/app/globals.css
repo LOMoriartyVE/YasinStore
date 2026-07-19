@@ -3,16 +3,19 @@
   --font-heading: var(--font-outfit), system-ui, -apple-system, sans-serif;
   --font-body: var(--font-inter), system-ui, -apple-system, sans-serif;
 
-  /* Color Palette - Light Mode: 90% White, 5% Soft Black, 5% Red */
+  /* Color Palette - Light Mode: 90% White, 5% Soft Black, 5% Purple */
   --bg-primary: #ffffff;
   --bg-secondary: #f8f9fa;
   --bg-tertiary: #f1f2f5;
   --text-primary: #121214; /* Soft Black */
   --text-secondary: #4a4a52; /* Muted Soft Black */
   --text-tertiary: #71717a;
-  --color-red: #d90429; /* Gamer Red */
-  --color-red-hover: #b3001e;
-  --color-red-rgb: 217, 4, 41;
+  --color-purple: #7209b7; /* Sleek Purple */
+  --color-purple-hover: #5603ad;
+  --color-purple-rgb: 114, 9, 183;
+  --color-red: var(--color-purple); /* Map for compatibility */
+  --color-red-hover: var(--color-purple-hover);
+  --color-red-rgb: var(--color-purple-rgb);
   --border-color: rgba(18, 18, 20, 0.08);
   --border-color-hover: rgba(18, 18, 20, 0.16);
 
@@ -37,16 +40,19 @@
 }
 
 [data-theme="dark"] {
-  /* Color Palette - Dark Mode: 90% Soft Black, 5% Ice White, 5% Red */
+  /* Color Palette - Dark Mode: 90% Soft Black, 5% Ice White, 5% Purple */
   --bg-primary: #0a0a0c; /* Soft Black */
   --bg-secondary: #121216; /* Card & Section Background */
   --bg-tertiary: #1a1a22;
   --text-primary: #f3f4f6; /* Ice White */
   --text-secondary: #a1a1aa; /* Muted Ice White */
   --text-tertiary: #71717a;
-  --color-red: #ff2e4d; /* High-Vibrancy Gamer Red */
-  --color-red-hover: #ff0026;
-  --color-red-rgb: 255, 46, 77;
+  --color-purple: #a855f7; /* Vibrant Purple */
+  --color-purple-hover: #b55fe6;
+  --color-purple-rgb: 168, 85, 247;
+  --color-red: var(--color-purple); /* Map for compatibility */
+  --color-red-hover: var(--color-purple-hover);
+  --color-red-rgb: var(--color-purple-rgb);
   --border-color: rgba(243, 244, 246, 0.08);
   --border-color-hover: rgba(243, 244, 246, 0.16);
 
@@ -153,12 +159,12 @@ button, input, select, textarea {
   }
 }
 
-@keyframes redGlow {
+@keyframes purpleGlow {
   0%, 100% {
-    box-shadow: 0 0 15px rgba(var(--color-red-rgb), 0.15);
+    box-shadow: 0 0 15px rgba(var(--color-purple-rgb), 0.15);
   }
   50% {
-    box-shadow: 0 0 25px rgba(var(--color-red-rgb), 0.35);
+    box-shadow: 0 0 25px rgba(var(--color-purple-rgb), 0.35);
   }
 }
 
@@ -174,8 +180,8 @@ button, input, select, textarea {
   animation: scaleUp var(--transition-normal) forwards;
 }
 
-.red-glow-effect {
-  animation: redGlow 3s infinite ease-in-out;
+.purple-glow-effect {
+  animation: purpleGlow 3s infinite ease-in-out;
 }
 
 /* Common Layout Helper Classes */

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import styles from './admin.module.css';
 import { Product, DEFAULT_LOGO_POSTER, PLATFORM_OPTIONS, getPlatformLabel, hasPlatformBit, togglePlatformBit } from '../gamesData';
-import { getProducts, addProduct, deleteProduct, verifyAdminPassword } from './actions';
+import { getProducts, addProduct, deleteProduct, verifyAdminPassword, getStoreConfig, updateStoreConfig } from './actions';
 import { 
   ArrowLeft, 
   Plus, 
@@ -40,11 +40,13 @@ export default function AdminPage() {
 
   // Admin Contact Details state
   const [whatsapp, setWhatsapp] = useState('+964 770 000 0000');
-  const [instagram, setInstagram] = useState('yasin.store');
-  const [telegram, setTelegram] = useState('yasin_store');
+  const [instagram, setInstagram] = useState('trt.store');
+  const [telegram, setTelegram] = useState('trt_store');
+  const [facebook, setFacebook] = useState('https://www.facebook.com/TRTstore1');
   const [zainCash, setZainCash] = useState('0770 000 0000');
   const [asiacell, setAsiacell] = useState('0770 000 0000');
   const [qiCard, setQiCard] = useState('Available upon request');
+  const [tableError, setTableError] = useState(false);
 
   // Load products from Supabase, theme, and authentication
   useEffect(() => {
@@ -53,21 +55,38 @@ export default function AdminPage() {
     setTheme(initialTheme);
     document.documentElement.setAttribute('data-theme', initialTheme);
 
-    // Load contact info from localStorage (contact info stays local since it's admin-only config)
-    const savedContact = localStorage.getItem('yasin-store-contact-info');
-    if (savedContact) {
-      try {
-        const parsed = JSON.parse(savedContact);
-        if (parsed.whatsapp) setWhatsapp(parsed.whatsapp);
-        if (parsed.instagram) setInstagram(parsed.instagram);
-        if (parsed.telegram) setTelegram(parsed.telegram);
-        if (parsed.zainCash) setZainCash(parsed.zainCash);
-        if (parsed.asiacell) setAsiacell(parsed.asiacell);
-        if (parsed.qiCard) setQiCard(parsed.qiCard);
-      } catch (e) {
-        console.error('Failed to parse contact info', e);
+    // Fetch store config from Supabase
+    const fetchConfig = async () => {
+      const res = await getStoreConfig();
+      if (res && res.data) {
+        if (res.data.whatsapp) setWhatsapp(res.data.whatsapp);
+        if (res.data.instagram) setInstagram(res.data.instagram);
+        if (res.data.telegram) setTelegram(res.data.telegram);
+        if (res.data.facebook) setFacebook(res.data.facebook);
+        if (res.data.zain_cash) setZainCash(res.data.zain_cash);
+        if (res.data.asiacell) setAsiacell(res.data.asiacell);
+        if (res.data.qi_card) setQiCard(res.data.qi_card);
+      } else if (res && res.tableDoesNotExist) {
+        setTableError(true);
+        // Fallback to local storage
+        const savedContact = localStorage.getItem('yasin-store-contact-info');
+        if (savedContact) {
+          try {
+            const parsed = JSON.parse(savedContact);
+            if (parsed.whatsapp) setWhatsapp(parsed.whatsapp);
+            if (parsed.instagram) setInstagram(parsed.instagram);
+            if (parsed.telegram) setTelegram(parsed.telegram);
+            if (parsed.facebook) setFacebook(parsed.facebook);
+            if (parsed.zainCash) setZainCash(parsed.zainCash);
+            if (parsed.asiacell) setAsiacell(parsed.asiacell);
+            if (parsed.qiCard) setQiCard(parsed.qiCard);
+          } catch (e) {
+            console.error('Failed to parse contact info fallback', e);
+          }
+        }
       }
-    }
+    };
+    fetchConfig();
 
     // Check if authenticated in session
     const isAuthed = sessionStorage.getItem('yasin-store-admin-authed');
@@ -198,29 +217,53 @@ export default function AdminPage() {
     fetchProducts();
   };
 
-  const handleSaveContactInfo = (e: React.FormEvent) => {
+  const handleSaveContactInfo = async (e: React.FormEvent) => {
     e.preventDefault();
-    const contactData = {
+    const configData = {
       whatsapp,
       instagram,
       telegram,
+      facebook,
+      zain_cash: zainCash,
+      asiacell,
+      qi_card: qiCard
+    };
+    
+    const res = await updateStoreConfig(configData);
+    
+    // Always update local storage for instant sync in dev/fallback mode
+    localStorage.setItem('yasin-store-contact-info', JSON.stringify({
+      whatsapp,
+      instagram,
+      telegram,
+      facebook,
       zainCash,
       asiacell,
       qiCard
-    };
-    localStorage.setItem('yasin-store-contact-info', JSON.stringify(contactData));
-    showToast('Contact & Payment details updated!');
+    }));
+
+    if (res.success) {
+      setTableError(false);
+      showToast('Store settings synced and saved in database!');
+    } else {
+      if (res.tableDoesNotExist) {
+        setTableError(true);
+        showToast('Settings saved locally. Supabase table needs setup!');
+      } else {
+        showToast(`Sync Error: ${res.error}`);
+      }
+    }
   };
 
   if (!isAuthenticated) {
     return (
       <div className={styles.lockScreen}>
         <div className={styles.lockCard}>
-          <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--color-red)' }}>
-            <Lock size={48} className="red-glow-effect" style={{ borderRadius: '50%', padding: '10px', backgroundColor: 'rgba(255,46,77,0.1)' }} />
+          <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--color-purple)' }}>
+            <Lock size={48} className="purple-glow-effect" style={{ borderRadius: '50%', padding: '10px', backgroundColor: 'rgba(168,85,247,0.1)' }} />
           </div>
           <h1 className={styles.lockTitle}>Admin Access</h1>
-          <p className={styles.lockDesc}>Enter the cryptographic console key to access the Yasin Store catalog database.</p>
+          <p className={styles.lockDesc}>Enter the cryptographic console key to access the TRT STORE catalog database.</p>
           <form onSubmit={handlePasswordSubmit} className={styles.lockForm}>
             <input 
               type="password" 
@@ -253,7 +296,7 @@ export default function AdminPage() {
       <header className={`${styles.header} container`}>
         <div className={styles.titleSection}>
           <h1 className={styles.title}>
-            YASIN <span className={styles.titleRed}>STORE</span> Admin
+            TRT <span className={styles.titlePurple}>STORE</span> Admin
           </h1>
           <span className={styles.subtitle}>Manage gaming products and inventory catalog</span>
         </div>
@@ -272,7 +315,7 @@ export default function AdminPage() {
         {/* Left Side: Add Product Form */}
         <section className={styles.panelCard}>
           <h2 className={styles.panelTitle}>
-            <Plus size={20} className={styles.titleRed} /> Add New Product
+            <Plus size={20} className={styles.titlePurple} /> Add New Product
           </h2>
           <form className={styles.form} onSubmit={handleAddProduct}>
             <div className={styles.formGroup}>
@@ -401,8 +444,30 @@ export default function AdminPage() {
         {/* Contact & Payment Info Settings Card */}
         <section className={styles.panelCard} style={{ marginTop: '24px' }}>
           <h2 className={styles.panelTitle}>
-            <Database size={20} className={styles.titleRed} /> Store Contact & Payment Info
+            <Database size={20} className={styles.titlePurple} /> Store Contact & Payment Info
           </h2>
+          {tableError && (
+            <div style={{ padding: '16px', backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid #f59e0b', borderRadius: 'var(--radius-md)', color: '#f59e0b', fontSize: '0.85rem', lineHeight: '1.5' }}>
+              <strong style={{ display: 'block', marginBottom: '6px' }}>⚠️ Supabase Database Table Pending</strong>
+              To save these settings permanently in the database, create the config table in your Supabase project. Go to <strong>Supabase Dashboard &gt; SQL Editor &gt; New Query</strong>, paste the following SQL, and click <strong>Run</strong>:
+              <pre style={{ margin: '10px 0 0 0', padding: '12px', backgroundColor: 'var(--bg-primary)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '6px', fontFamily: 'monospace', overflowX: 'auto', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+{`CREATE TABLE IF NOT EXISTS public.store_config (
+  id int PRIMARY KEY DEFAULT 1,
+  whatsapp text,
+  instagram text,
+  telegram text,
+  facebook text,
+  zain_cash text,
+  asiacell text,
+  qi_card text
+);
+
+INSERT INTO public.store_config (id, whatsapp, instagram, telegram, facebook, zain_cash, asiacell, qi_card)
+VALUES (1, '+964 770 000 0000', 'trt.store', 'trt_store', 'https://www.facebook.com/TRTstore1', '0770 000 0000', '0770 000 0000', 'Available upon request')
+ON CONFLICT (id) DO NOTHING;`}
+              </pre>
+            </div>
+          )}
           <form className={styles.form} onSubmit={handleSaveContactInfo}>
             <div className={styles.formGroup}>
               <label className={styles.label}>WhatsApp Number</label>
@@ -421,7 +486,7 @@ export default function AdminPage() {
                 className={styles.input} 
                 value={instagram} 
                 onChange={(e) => setInstagram(e.target.value)} 
-                placeholder="yasin.store"
+                placeholder="trt.store"
               />
             </div>
             <div className={styles.formGroup}>
@@ -431,7 +496,47 @@ export default function AdminPage() {
                 className={styles.input} 
                 value={telegram} 
                 onChange={(e) => setTelegram(e.target.value)} 
-                placeholder="yasin_store"
+                placeholder="trt_store"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Facebook Link</label>
+              <input 
+                type="text" 
+                className={styles.input} 
+                value={facebook} 
+                onChange={(e) => setFacebook(e.target.value)} 
+                placeholder="https://www.facebook.com/TRTstore1"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Zain Cash Number</label>
+              <input 
+                type="text" 
+                className={styles.input} 
+                value={zainCash} 
+                onChange={(e) => setZainCash(e.target.value)} 
+                placeholder="0770 000 0000"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Asiacell Number</label>
+              <input 
+                type="text" 
+                className={styles.input} 
+                value={asiacell} 
+                onChange={(e) => setAsiacell(e.target.value)} 
+                placeholder="0770 000 0000"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>QI Card Details</label>
+              <input 
+                type="text" 
+                className={styles.input} 
+                value={qiCard} 
+                onChange={(e) => setQiCard(e.target.value)} 
+                placeholder="Available upon request"
               />
             </div>
 
@@ -444,7 +549,7 @@ export default function AdminPage() {
         {/* Right Side: Current Catalog List */}
         <section className={styles.panelCard}>
           <h2 className={styles.panelTitle}>
-            <Database size={20} className={styles.titleRed} /> Current Catalog ({products.length})
+            <Database size={20} className={styles.titlePurple} /> Current Catalog ({products.length})
           </h2>
           <div className={styles.catalogList}>
             {products.length === 0 ? (
@@ -470,7 +575,7 @@ export default function AdminPage() {
                       {product.asia_price != null && product.asia_price > 0 && (
                         <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginLeft: '8px' }}>Asia: {product.asia_price.toLocaleString()} IQD</span>
                       )}
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginLeft: '8px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid rgba(255,46,77,0.15)' }}>{getPlatformLabel(product.platform)}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginLeft: '8px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.15)' }}>{getPlatformLabel(product.platform)}</span>
                     </div>
                   </div>
                   <button 

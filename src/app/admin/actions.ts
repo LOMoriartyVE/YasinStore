@@ -239,3 +239,92 @@ export async function deleteUserAccount(
 
   return { success: true, error: null };
 }
+
+// ────────────────────────────────────────
+// Store Config (Contacts & Payment) — (bypasses RLS)
+// ────────────────────────────────────────
+
+export interface StoreConfig {
+  whatsapp: string;
+  instagram: string;
+  telegram: string;
+  facebook: string;
+  zain_cash: string;
+  asiacell: string;
+  qi_card: string;
+}
+
+export async function getStoreConfig(): Promise<{
+  data: StoreConfig | null;
+  error: string | null;
+  tableDoesNotExist?: boolean;
+}> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('store_config')
+      .select('*')
+      .eq('id', 1)
+      .maybeSingle();
+
+    if (error) {
+      const isMissingTable = error.message?.includes('does not exist') || error.code === '42P01';
+      return { data: null, error: error.message, tableDoesNotExist: isMissingTable };
+    }
+
+    if (!data) {
+      // If table exists but row 1 is missing, let's insert a default row
+      const defaultData: StoreConfig = {
+        whatsapp: '+964 770 000 0000',
+        instagram: 'trt.store',
+        telegram: 'trt_store',
+        facebook: 'https://www.facebook.com/TRTstore1',
+        zain_cash: '0770 000 0000',
+        asiacell: '0770 000 0000',
+        qi_card: 'Available upon request'
+      };
+      
+      const { error: insertError } = await supabaseAdmin
+        .from('store_config')
+        .insert([{ id: 1, ...defaultData }]);
+      
+      if (insertError) {
+        return { data: null, error: insertError.message };
+      }
+      return { data: defaultData, error: null };
+    }
+
+    return {
+      data: {
+        whatsapp: data.whatsapp || '',
+        instagram: data.instagram || '',
+        telegram: data.telegram || '',
+        facebook: data.facebook || '',
+        zain_cash: data.zain_cash || '',
+        asiacell: data.asiacell || '',
+        qi_card: data.qi_card || ''
+      },
+      error: null
+    };
+  } catch (err: any) {
+    return { data: null, error: err.message };
+  }
+}
+
+export async function updateStoreConfig(
+  config: StoreConfig
+): Promise<{ success: boolean; error: string | null; tableDoesNotExist?: boolean }> {
+  try {
+    const { error } = await supabaseAdmin
+      .from('store_config')
+      .upsert({ id: 1, ...config });
+
+    if (error) {
+      const isMissingTable = error.message?.includes('does not exist') || error.code === '42P01';
+      return { success: false, error: error.message, tableDoesNotExist: isMissingTable };
+    }
+
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}

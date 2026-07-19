@@ -77,10 +77,10 @@ function LoginContent() {
     <div className={styles.authPage}>
       <div className={styles.authCard}>
         <div className={styles.authIcon}>
-          <Gamepad2 size={48} style={{ borderRadius: '50%', padding: '10px', backgroundColor: 'rgba(255,46,77,0.1)' }} />
+          <Gamepad2 size={48} style={{ borderRadius: '50%', padding: '10px', backgroundColor: 'rgba(168,85,247,0.1)' }} />
         </div>
         <h1 className={styles.authTitle}>Welcome Back</h1>
-        <p className={styles.authDesc}>Sign in to your Yasin Store account to browse, purchase, and track your orders.</p>
+        <p className={styles.authDesc}>Sign in to your TRT Store account to browse, purchase, and track your orders.</p>
 
         {success && (
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }} className={styles.authSuccess}>

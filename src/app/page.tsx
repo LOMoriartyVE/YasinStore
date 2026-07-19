@@ -21,6 +21,7 @@ import { supabase } from '../lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { User } from 'lucide-react';
+import { getStoreConfig } from './admin/actions';
 
 export default function Home() {
   const [allGames, setAllGames] = useState<Game[]>([]);
@@ -46,8 +47,9 @@ export default function Home() {
   const [checkoutToast, setCheckoutToast] = useState<{ message: string; type: 'success' | 'error' | 'loading' } | null>(null);
   const [contactInfo, setContactInfo] = useState({
     whatsapp: '+964 770 000 0000',
-    instagram: 'yasin.store',
-    telegram: 'yasin_store',
+    instagram: 'trt.store',
+    telegram: 'trt_store',
+    facebook: 'https://www.facebook.com/TRTstore1',
     zainCash: '0770 000 0000',
     asiacell: '0770 000 0000',
     qiCard: 'Available upon request'
@@ -92,15 +94,33 @@ export default function Home() {
       }
     }
 
-    // Load contact information from localStorage
-    const savedContact = localStorage.getItem('yasin-store-contact-info');
-    if (savedContact) {
-      try {
-        setContactInfo(JSON.parse(savedContact));
-      } catch (e) {
-        console.error('Failed to parse contact info', e);
+    // Load contact information from database, fallback to local storage
+    const fetchConfig = async () => {
+      const res = await getStoreConfig();
+      if (res && res.data) {
+        const mapped = {
+          whatsapp: res.data.whatsapp || '',
+          instagram: res.data.instagram || '',
+          telegram: res.data.telegram || '',
+          facebook: res.data.facebook || '',
+          zainCash: res.data.zain_cash || '',
+          asiacell: res.data.asiacell || '',
+          qiCard: res.data.qi_card || ''
+        };
+        setContactInfo(mapped);
+        localStorage.setItem('yasin-store-contact-info', JSON.stringify(mapped));
+      } else {
+        const savedContact = localStorage.getItem('yasin-store-contact-info');
+        if (savedContact) {
+          try {
+            setContactInfo(JSON.parse(savedContact));
+          } catch (e) {
+            console.error('Failed to parse contact info', e);
+          }
+        }
       }
-    }
+    };
+    fetchConfig();
   }, [router]);
 
   // Filter games locally when search, genre, or allGames list changes
@@ -228,7 +248,7 @@ export default function Home() {
 
   const getOrderSummaryText = () => {
     const itemsText = cart.map(item => item.title).join(', ');
-    return `Hello Yasin Store! My Order ID is ${shortUUID(activeRequestId)} (${activeRequestId}). Games: ${itemsText} (Total: ${cartTotal.toLocaleString()} IQD). Please confirm my order!`;
+    return `Hello TRT STORE! My Order ID is ${shortUUID(activeRequestId)} (${activeRequestId}). Games: ${itemsText} (Total: ${cartTotal.toLocaleString()} IQD). Please confirm my order!`;
   };
 
   const getWhatsAppLink = () => {
@@ -244,6 +264,10 @@ export default function Home() {
   const getInstagramLink = () => {
     const cleanUser = contactInfo.instagram.replace('@', '').trim();
     return `https://instagram.com/${cleanUser}`;
+  };
+
+  const getFacebookLink = () => {
+    return contactInfo.facebook || '';
   };
 
   const cartTotal = cart.reduce((total, item) => total + item.price, 0);
@@ -281,7 +305,7 @@ export default function Home() {
 
   if (authLoading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)', color: 'var(--color-red)', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)', color: 'var(--color-purple)', flexDirection: 'column', gap: '16px' }}>
         <Loader2 size={32} className="spin-animation" />
         <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>Loading Store...</span>
       </div>
@@ -297,7 +321,7 @@ export default function Home() {
             <span className={styles.logoIcon}>
               <Gamepad2 size={32} strokeWidth={2.5} />
             </span>
-            <span>YASIN <span className={styles.logoRed}>STORE</span></span>
+            <span>TRT <span className={styles.logoPurple}>STORE</span></span>
           </div>
 
           <ul className={styles.navLinks}>
@@ -544,7 +568,7 @@ export default function Home() {
             <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
               <div style={{ textAlign: 'center', paddingBottom: '24px', borderBottom: '1px solid var(--border-color)' }}>
                 <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.5rem', fontWeight: 800, marginBottom: '12px' }}>
-                  CUSTOMER <span style={{ color: 'var(--color-red)' }}>SUPPORT</span>
+                  CUSTOMER <span style={{ color: 'var(--color-purple)' }}>SUPPORT</span>
                 </h1>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
                   Need help with your purchase request or payment transfer? Contact our team directly.
@@ -552,63 +576,92 @@ export default function Home() {
               </div>
 
               {/* Contact Channels */}
-              <div>
-                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', marginBottom: '16px' }}>Direct Support Channels</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-                  <a href={getWhatsAppLink()} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                    <div style={{ padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                      <span style={{ display: 'flex', padding: '10px', backgroundColor: 'rgba(37,211,102,0.1)', color: '#25d366', borderRadius: '50%', fontSize: '1.2rem' }}>
-                        💬
-                      </span>
-                      <div>
-                        <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>WhatsApp Chat</strong>
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{contactInfo.whatsapp}</span>
-                      </div>
-                    </div>
-                  </a>
-                  <a href={getTelegramLink()} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                    <div style={{ padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                      <span style={{ display: 'flex', padding: '10px', backgroundColor: 'rgba(0,136,204,0.1)', color: '#0088cc', borderRadius: '50%', fontSize: '1.2rem' }}>
-                        ✈️
-                      </span>
-                      <div>
-                        <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Telegram Channel</strong>
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>@{contactInfo.telegram}</span>
-                      </div>
-                    </div>
-                  </a>
-                  <a href={getInstagramLink()} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                    <div style={{ padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                      <span style={{ display: 'flex', padding: '10px', backgroundColor: 'rgba(225,48,108,0.1)', color: '#e1306c', borderRadius: '50%', fontSize: '1.2rem' }}>
-                        📸
-                      </span>
-                      <div>
-                        <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Instagram DM</strong>
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>@{contactInfo.instagram}</span>
-                      </div>
-                    </div>
-                  </a>
+              {(contactInfo.whatsapp || contactInfo.telegram || contactInfo.instagram || contactInfo.facebook) && (
+                <div>
+                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', marginBottom: '16px' }}>Direct Support Channels</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                    {contactInfo.whatsapp && (
+                      <a href={getWhatsAppLink()} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                        <div style={{ padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                          <span style={{ display: 'flex', padding: '10px', backgroundColor: 'rgba(37,211,102,0.1)', color: '#25d366', borderRadius: '50%', fontSize: '1.2rem' }}>
+                            💬
+                          </span>
+                          <div>
+                            <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>WhatsApp Chat</strong>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{contactInfo.whatsapp}</span>
+                          </div>
+                        </div>
+                      </a>
+                    )}
+                    {contactInfo.telegram && (
+                      <a href={getTelegramLink()} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                        <div style={{ padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                          <span style={{ display: 'flex', padding: '10px', backgroundColor: 'rgba(0,136,204,0.1)', color: '#0088cc', borderRadius: '50%', fontSize: '1.2rem' }}>
+                            ✈️
+                          </span>
+                          <div>
+                            <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Telegram Channel</strong>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>@{contactInfo.telegram}</span>
+                          </div>
+                        </div>
+                      </a>
+                    )}
+                    {contactInfo.instagram && (
+                      <a href={getInstagramLink()} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                        <div style={{ padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                          <span style={{ display: 'flex', padding: '10px', backgroundColor: 'rgba(225,48,108,0.1)', color: '#e1306c', borderRadius: '50%', fontSize: '1.2rem' }}>
+                            📸
+                          </span>
+                          <div>
+                            <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Instagram DM</strong>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>@{contactInfo.instagram}</span>
+                          </div>
+                        </div>
+                      </a>
+                    )}
+                    {contactInfo.facebook && (
+                      <a href={getFacebookLink()} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                        <div style={{ padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                          <span style={{ display: 'flex', padding: '10px', backgroundColor: 'rgba(59,89,152,0.1)', color: '#3b5998', borderRadius: '50%', fontSize: '1.2rem' }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                          </span>
+                          <div>
+                            <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Facebook Page</strong>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>TRT Store</span>
+                          </div>
+                        </div>
+                      </a>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Payment Methods Card - Icons Only */}
-              <div style={{ padding: '24px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
-                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', color: 'var(--color-red)', marginBottom: '16px' }}>💳 Accepted Payment Networks</h3>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', padding: '12px 0' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>💳</div>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Zain Cash</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>📱</div>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Asiacell</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>🏦</div>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>QI Card</span>
+              {(contactInfo.zainCash || contactInfo.asiacell || contactInfo.qiCard) && (
+                <div style={{ padding: '24px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', color: 'var(--color-purple)', marginBottom: '16px' }}>💳 Accepted Payment Networks</h3>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', padding: '12px 0' }}>
+                    {contactInfo.zainCash && (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: 'rgba(168,85,247,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>💳</div>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Zain Cash</span>
+                      </div>
+                    )}
+                    {contactInfo.asiacell && (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: 'rgba(168,85,247,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>📱</div>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Asiacell</span>
+                      </div>
+                    )}
+                    {contactInfo.qiCard && (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: 'rgba(168,85,247,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>🏦</div>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>QI Card</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </section>
         )}
@@ -625,7 +678,7 @@ export default function Home() {
       <div className={`${styles.drawer} ${cartOpen ? styles.drawerActive : ''}`}>
         <div className={styles.drawerHeader}>
           <h2 className={styles.drawerTitle}>
-            <ShoppingBag size={24} className={styles.logoRed} /> {showPayment ? 'Manual Checkout' : 'Shopping Cart'}
+            <ShoppingBag size={24} className={styles.logoPurple} /> {showPayment ? 'Manual Checkout' : 'Shopping Cart'}
           </h2>
           <button className={styles.closeBtn} onClick={closeCartDrawer}>
             <X size={20} />
@@ -651,66 +704,93 @@ export default function Home() {
               {/* Request ID Badge */}
               <div style={{ textAlign: 'center', padding: '20px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
                 <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 'bold', marginBottom: '8px' }}>Your Order ID</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '900', fontFamily: 'var(--font-heading)', color: 'var(--color-red)', letterSpacing: '3px' }}>{shortUUID(activeRequestId)}</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '900', fontFamily: 'var(--font-heading)', color: 'var(--color-purple)', letterSpacing: '3px' }}>{shortUUID(activeRequestId)}</div>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '6px', fontFamily: 'monospace', wordBreak: 'break-all' }}>{activeRequestId}</p>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '8px' }}>Send this ID to the admin via any channel below</p>
               </div>
 
               {/* Payment Methods - Icons Only */}
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', padding: '12px 0' }}>
-                <div
-                  title="Zain Cash"
-                  style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}
-                >
-                  💳
+              {(contactInfo.zainCash || contactInfo.asiacell || contactInfo.qiCard) && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', padding: '12px 0' }}>
+                  {contactInfo.zainCash && (
+                    <div
+                      title="Zain Cash"
+                      style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(168,85,247,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}
+                    >
+                      💳
+                    </div>
+                  )}
+                  {contactInfo.asiacell && (
+                    <div
+                      title="Asiacell"
+                      style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(168,85,247,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}
+                    >
+                      📱
+                    </div>
+                  )}
+                  {contactInfo.qiCard && (
+                    <div
+                      title="QI Card"
+                      style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(168,85,247,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}
+                    >
+                      🏦
+                    </div>
+                  )}
                 </div>
-                <div
-                  title="Asiacell"
-                  style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}
-                >
-                  📱
-                </div>
-                <div
-                  title="QI Card"
-                  style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(255,46,77,0.08)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}
-                >
-                  🏦
-                </div>
-              </div>
+              )}
 
               {/* Contact Admin Links - Compact */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', textAlign: 'center' }}>Contact Admin to Confirm</span>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <a 
-                    href={getWhatsAppLink()} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', borderRadius: 'var(--radius-md)', backgroundColor: '#25D366', color: '#fff', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24z"/></svg>
-                    WhatsApp
-                  </a>
-                  <a 
-                    href={getTelegramLink()} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', borderRadius: 'var(--radius-md)', backgroundColor: '#0088cc', color: '#fff', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.18l-1.97 9.28c-.15.65-.53.81-1.08.5L11.5 15.7l-1.45 1.4c-.16.16-.3.3-.61.3l.21-3.08 5.61-5.07c.24-.22-.05-.34-.38-.13L7.82 13.5l-3-1c-.65-.2-1-.65.05-1.1l11.75-4.5c.54-.2 1 .1.84.78z"/></svg>
-                    Telegram
-                  </a>
-                  <a 
-                    href={getInstagramLink()} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', borderRadius: 'var(--radius-md)', backgroundColor: '#E1306C', color: '#fff', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-                    Instagram
-                  </a>
+              {(contactInfo.whatsapp || contactInfo.telegram || contactInfo.instagram || contactInfo.facebook) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', textAlign: 'center' }}>Contact Admin to Confirm</span>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    {contactInfo.whatsapp && (
+                      <a 
+                        href={getWhatsAppLink()} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ flex: 1, minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', borderRadius: 'var(--radius-md)', backgroundColor: '#25D366', color: '#fff', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24z"/></svg>
+                        WhatsApp
+                      </a>
+                    )}
+                    {contactInfo.telegram && (
+                      <a 
+                        href={getTelegramLink()} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ flex: 1, minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', borderRadius: 'var(--radius-md)', backgroundColor: '#0088cc', color: '#fff', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.18l-1.97 9.28c-.15.65-.53.81-1.08.5L11.5 15.7l-1.45 1.4c-.16.16-.3.3-.61.3l.21-3.08 5.61-5.07c.24-.22-.05-.34-.38-.13L7.82 13.5l-3-1c-.65-.2-1-.65.05-1.1l11.75-4.5c.54-.2 1 .1.84.78z"/></svg>
+                        Telegram
+                      </a>
+                    )}
+                    {contactInfo.instagram && (
+                      <a 
+                        href={getInstagramLink()} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ flex: 1, minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', borderRadius: 'var(--radius-md)', backgroundColor: '#E1306C', color: '#fff', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                        Instagram
+                      </a>
+                    )}
+                    {contactInfo.facebook && (
+                      <a 
+                        href={getFacebookLink()} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ flex: 1, minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', borderRadius: 'var(--radius-md)', backgroundColor: '#3b5998', color: '#fff', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                        Facebook
+                      </a>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : cart.length === 0 ? (
             <div className={styles.emptyCart}>
@@ -877,7 +957,7 @@ export default function Home() {
             <span className={styles.logoIcon}>
               <Gamepad2 size={24} />
             </span>
-            <span>YASIN <span className={styles.logoRed}>STORE</span></span>
+            <span>TRT <span className={styles.logoPurple}>STORE</span></span>
           </div>
           <ul className={styles.footerLinks}>
             <li><a href="#" className={styles.footerLink} onClick={(e) => { e.preventDefault(); setActiveTab('home'); }}>Store</a></li>
@@ -886,7 +966,7 @@ export default function Home() {
             <li><a href="#" className={styles.footerLink} onClick={(e) => { e.preventDefault(); setActiveTab('support'); }}>Support</a></li>
           </ul>
           <p className={styles.footerCopyright}>
-            &copy; {new Date().getFullYear()} Yasin Store. All Rights Reserved.
+            &copy; {new Date().getFullYear()} TRT Store. All Rights Reserved.
           </p>
         </div>
       </footer>

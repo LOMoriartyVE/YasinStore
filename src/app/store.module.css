@@ -40,14 +40,14 @@
 }
 
 .logoIcon {
-  color: var(--color-red);
+  color: var(--color-purple);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.logoRed {
-  color: var(--color-red);
+.logoPurple {
+  color: var(--color-purple);
 }
 
 .navLinks {
@@ -160,7 +160,7 @@
 [data-theme="dark"] .hero {
   background: linear-gradient(135deg, rgba(var(--color-red-rgb), 0.25) 0%, rgba(10, 10, 12, 0.95) 70%), url('/images/neon-syndicate.png') center/cover no-repeat;
   border-color: rgba(var(--color-red-rgb), 0.25);
-  animation: redGlow 6s infinite ease-in-out;
+  animation: purpleGlow 6s infinite ease-in-out;
 }
 
 [data-theme="light"] .hero {

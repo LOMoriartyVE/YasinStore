@@ -15,8 +15,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Yasin Store - Ultimate Gaming Store",
-  description: "Browse, discover, and acquire elite-tier games. Explore a handpicked collection of next-gen masterpieces at Yasin Store.",
+  title: "TRT Store - Ultimate Gaming Store",
+  description: "Browse, discover, and acquire elite-tier games. Explore a handpicked collection of next-gen masterpieces at TRT Store.",
 };
 
 export default function RootLayout({

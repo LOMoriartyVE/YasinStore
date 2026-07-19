@@ -132,11 +132,11 @@ export default function RequestsPage() {
     return (
       <div className={styles.lockScreen}>
         <div className={styles.lockCard}>
-          <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--color-red)' }}>
-            <Lock size={48} className="red-glow-effect" style={{ borderRadius: '50%', padding: '10px', backgroundColor: 'rgba(255,46,77,0.1)' }} />
+          <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--color-purple)' }}>
+            <Lock size={48} className="purple-glow-effect" style={{ borderRadius: '50%', padding: '10px', backgroundColor: 'rgba(168,85,247,0.1)' }} />
           </div>
           <h1 className={styles.lockTitle}>Admin Access</h1>
-          <p className={styles.lockDesc}>Enter the cryptographic console key to access the Yasin Store catalog database.</p>
+          <p className={styles.lockDesc}>Enter the cryptographic console key to access the TRT STORE catalog database.</p>
           <form onSubmit={handlePasswordSubmit} className={styles.lockForm}>
             <input type="password" placeholder="Enter Password" className={styles.input} value={passwordInput} onChange={e => setPasswordInput(e.target.value)} required disabled={loginLoading} />
             {loginError && <span className={styles.lockError}>Invalid key password. Access Denied.</span>}
@@ -153,7 +153,7 @@ export default function RequestsPage() {
     <div className={styles.adminPage}>
       <header className={`${styles.header} container`}>
         <div className={styles.titleSection}>
-          <h1 className={styles.title}>USER <span className={styles.titleRed}>REQUESTS</span></h1>
+          <h1 className={styles.title}>USER <span className={styles.titlePurple}>REQUESTS</span></h1>
           <span className={styles.subtitle}>Verify manual payments and deliver client game keys</span>
         </div>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
@@ -184,13 +184,13 @@ export default function RequestsPage() {
 
         <section className={styles.panelCard}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-            <h2 className={styles.panelTitle} style={{ margin: 0 }}><Database size={20} className={styles.titleRed} /> Purchase Requests</h2>
+            <h2 className={styles.panelTitle} style={{ margin: 0 }}><Database size={20} className={styles.titlePurple} /> Purchase Requests</h2>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {(['All', 'PENDING', 'COMPLETED'] as const).map(t => (
-                <button key={t} onClick={() => setFilter(t)} style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', backgroundColor: filter === t ? 'var(--color-red)' : 'var(--bg-secondary)', color: filter === t ? '#fff' : 'var(--text-primary)', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>{t === 'All' ? 'All' : t.charAt(0) + t.slice(1).toLowerCase()}</button>
+                <button key={t} onClick={() => setFilter(t)} style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', backgroundColor: filter === t ? 'var(--color-purple)' : 'var(--bg-secondary)', color: filter === t ? '#fff' : 'var(--text-primary)', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>{t === 'All' ? 'All' : t.charAt(0) + t.slice(1).toLowerCase()}</button>
               ))}
               {totalCompleted > 0 && (
-                <button onClick={handleClearAllCompleted} style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,46,77,0.2)', backgroundColor: 'rgba(255,46,77,0.05)', color: 'var(--color-red)', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>Clear Completed</button>
+                <button onClick={handleClearAllCompleted} style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(168,85,247,0.2)', backgroundColor: 'rgba(168,85,247,0.05)', color: 'var(--color-purple)', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>Clear Completed</button>
               )}
             </div>
           </div>
@@ -229,7 +229,7 @@ export default function RequestsPage() {
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', alignItems: 'center' }}>
                       <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <ArrowUpRight size={14} style={{ opacity: 0.6 }} /> {item.product_name}
-                        <span style={{ fontSize: '0.7rem', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(255,46,77,0.08)', color: 'var(--text-tertiary)', border: '1px solid rgba(255,46,77,0.15)' }}>{getPlatformLabel(item.platform)}</span>
+                        <span style={{ fontSize: '0.7rem', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(168,85,247,0.08)', color: 'var(--text-tertiary)', border: '1px solid rgba(168,85,247,0.15)' }}>{getPlatformLabel(item.platform)}</span>
                       </span>
                       <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                         <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{item.price.toLocaleString()} IQD</span>
@@ -242,7 +242,7 @@ export default function RequestsPage() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>Total:</span>
-                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-red)' }}>{(req.total_amount || 0).toLocaleString()} IQD</span>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-purple)' }}>{(req.total_amount || 0).toLocaleString()} IQD</span>
                 </div>
               </div>
             ))}

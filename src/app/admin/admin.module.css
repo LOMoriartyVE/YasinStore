@@ -31,8 +31,8 @@
   letter-spacing: -0.02em;
 }
 
-.titleRed {
-  color: var(--color-red);
+.titlePurple {
+  color: var(--color-purple);
 }
 
 .subtitle {
